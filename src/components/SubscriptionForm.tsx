@@ -11,6 +11,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 
+
 // Theme creation
 const companyTheme = createTheme({
   palette: {
@@ -60,8 +61,35 @@ const ACCOUNT_TEMPLATE_HEADERS = [
 ];
 
 const SubscriptionForm: React.FC = () => {
+    const getNextAccountId = () => {
+        const key = 'accountIdCounter';
+        const current = parseInt(localStorage.getItem(key) || '0', 10);
+        const next = current + .5;
+        localStorage.setItem(key, next.toString());
+        return current;
+    };
+    const resetAccountIdCounter = () => {
+        const key = 'accountIdCounter';
+        localStorage.setItem(key, '0');
+        // Reset the form and assign a new Account ID
+        setFormData({
+            RunId: 10,
+            AccountId: getNextAccountId(),
+            accessCodes: [],
+            assignedUnits: [],
+            vehicles: []
+        });
+        setErrors({});
+        setCopyAccountToBilling(false);
+        setImportError(null);
+        setImportSuccess(null);
+        // Optionally scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return 0;
+    }
     const [formData, setFormData] = useState<Partial<SubscriptionData>>({
         RunId: 10,
+        AccountId: getNextAccountId(), // Use a function to get the next account ID
         accessCodes: [],
         assignedUnits: [],
         vehicles: []
@@ -524,6 +552,7 @@ const SubscriptionForm: React.FC = () => {
     const convertToLegacyFormat = (data: Partial<SubscriptionData>): any => {
         // Use a plain object for legacyData to allow dynamic string keys
         const legacyData: { [key: string]: any } = { ...data };
+        legacyData['AccountName'] = `${data.AccountFirstName || ''} ${data.AccountLastName || ''}`.trim();
 
         // Convert access codes array to legacy fields
         if (data.accessCodes && data.accessCodes.length > 0) {
@@ -713,7 +742,7 @@ const SubscriptionForm: React.FC = () => {
     const countries = ['CA', 'US'];
     const accountTypes = ['Corporate', 'Individual'];
     const subscriptionTypes = ['TERMED', 'EVERGREEN'];
-    const invoiceTemplates = ['LAZ_STANDARD', 'LAZ_STANDARD_MAIL', 'LAZ_SUMMARY', 'LAZ_SUMMARY_MAIL', 'IPC_STANDARD', 'IPC_STANDARD_FR', 'IPC_SUMMARY', 'IPC_SUMMARY_FR'];
+    const invoiceTemplates = ['LAZ_STANDARD', 'LAZ_SUMMARY'];
     const accessCodeTypes = ['PERMIT', 'PROXCARD'];
     const vehicleColors = ['Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Silver', 'Gray', 'Grey', 'Brown', 'Orange', 'Purple', 'Pink', 'Gold', 'Beige', 'Tan', 'Maroon', 'Navy'];
 
@@ -769,8 +798,6 @@ const SubscriptionForm: React.FC = () => {
     const handleAutofillTestData = () => {
         const testData: Partial<SubscriptionData> = {
             // Account Information
-            RunId: 1001,
-            AccountId: 12345,
             AccountFirstName: 'John',
             AccountLastName: 'Doe',
             AccountEmail: 'john.doe@example.com',
@@ -797,7 +824,6 @@ const SubscriptionForm: React.FC = () => {
             AccountBillToCountry: 'CA',
             
             // Subscription Information
-            SubscriptionId: 5001,
             SubscriptionName: 'Premium Parking Package',
             SubscriptionType: 'TERMED',
             SubscriptionEffectiveDate: new Date('2025-08-01'),
@@ -807,7 +833,6 @@ const SubscriptionForm: React.FC = () => {
             SubscriptionTaxNumber2: '987-65-4321',
             
             // Member Information
-            SubscriptionMemberId: 7001,
             SubscriptionMemberFirstName: 'Jane',
             SubscriptionMemberLastName: 'Smith',
             SubscriptionMemberEmail: 'jane.smith@example.com',
@@ -1017,6 +1042,7 @@ const SubscriptionForm: React.FC = () => {
         };
         reader.readAsBinaryString(file);
     };
+
     {/*
     const validateAccountFields = () => {
         const newErrors: { [key: string]: string } = {};
@@ -1206,6 +1232,20 @@ const SubscriptionForm: React.FC = () => {
                         >
                             📝 Fill Test Data
                         </Button>
+                        <Button
+                            variant="contained"
+                            onClick={resetAccountIdCounter}
+                            color="warning"
+                            sx={{
+                                fontWeight: 650,
+                                px: 4,
+                                py: 1.5,
+                                ml: 2
+                            }}
+                            size="small"
+                        >
+                            Reset Account ID 
+                        </Button>
                     </Box>
 
                     {/* --- TOP OF FORM: Data Template Download & Import UI --- */}
@@ -1268,10 +1308,11 @@ const SubscriptionForm: React.FC = () => {
                                     fullWidth
                                     label="Account ID *"
                                     type="number"
-                                    value={formData.AccountId || ''}
+                                    value={getNextAccountId()}
                                     onChange={(e) => handleInputChange('AccountId', parseInt(e.target.value))}
                                     error={!!errors.AccountId}
                                     helperText={errors.AccountId}
+                                    disabled
                                 />
                             </Box>
                             <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
@@ -1822,7 +1863,7 @@ const SubscriptionForm: React.FC = () => {
                                     fullWidth
                                     label="Member ID"
                                     type="number"
-                                    value={formData.SubscriptionMemberId || ''}
+                                    value={1}
                                     onChange={(e) => handleInputChange('SubscriptionMemberId', parseInt(e.target.value))}
                                     required
                                 />
@@ -1831,7 +1872,7 @@ const SubscriptionForm: React.FC = () => {
                                 <TextField
                                     fullWidth
                                     label="Member First Name"
-                                    value={formData.SubscriptionMemberFirstName || ''}
+                                    value={ formData.SubscriptionMemberFirstName || ''}
                                     onChange={(e) => handleInputChange('SubscriptionMemberFirstName', e.target.value)}
                                     required
                                 />
@@ -2264,5 +2305,6 @@ const SubscriptionForm: React.FC = () => {
         </ThemeProvider>
     );
 };
+
 
 export default SubscriptionForm;
