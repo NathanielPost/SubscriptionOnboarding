@@ -77,6 +77,7 @@ const SubscriptionForm: React.FC = () => {
     const generateId = () => Math.random().toString(36).substr(2, 9);
 
     const addAccessCode = () => {
+        if ((formData.accessCodes || []).length >= 3) return;
         const newAccessCode: AccessCode = {
             id: generateId(),
             code: '',
@@ -115,6 +116,7 @@ const SubscriptionForm: React.FC = () => {
     };
 
     const addAssignedUnit = () => {
+        if ((formData.assignedUnits || []).length >= 1) return;
         const newUnit: AssignedUnit = {
             id: generateId(),
             unit: '',
@@ -152,6 +154,7 @@ const SubscriptionForm: React.FC = () => {
     };
 
     const addVehicle = () => {
+        if ((formData.vehicles || []).length >= 3) return;
         const newVehicle: Vehicle = {
             id: generateId(),
             name: '',
@@ -1211,7 +1214,7 @@ const SubscriptionForm: React.FC = () => {
                             <Typography variant="h5" sx={{ color: '#B20838', fontWeight: 600, mr: 1 }}>
                                 Data Template and Import
                             </Typography>
-                            <Tooltip title="Billing contact and address information">
+                            <Tooltip title="Download the data template, copy and paste your account information, save the file, then import the data">
                                 <InfoIcon sx={{ color: '#007dba', fontSize: 20 }} />
                             </Tooltip>
                             <Button
@@ -1674,7 +1677,7 @@ const SubscriptionForm: React.FC = () => {
                                             </TableCell>
                                         </TableRow>
                                     )}
-                                    {(formData.subscriptionPlans || []).map((plan: any, idx: number) => (
+                                    {(formData.subscriptionPlans || []).map((plan: any) => (
                                         <TableRow key={plan.id}>
                                             <TableCell align="center">
                                                 <IconButton
@@ -1856,7 +1859,7 @@ const SubscriptionForm: React.FC = () => {
                                 <TextField
                                     fullWidth
                                     label="Member Phone"
-                                    value={formData.SubscriptionMemberPhone || ''}
+                                    value={ formData.SubscriptionMemberPhone || ''}
                                     onChange={(e) => handlePhoneChange('SubscriptionMemberPhone', e.target.value)}
                                     error={!!errors.SubscriptionMemberPhone}
                                     helperText={errors.SubscriptionMemberPhone || 'Format: (XXX)XXX-XXXX'}
@@ -1896,10 +1899,16 @@ const SubscriptionForm: React.FC = () => {
                                                 px: 2,
                                                 py: 1
                                             }}
+                                            disabled={(formData.accessCodes || []).length >= 3}
                                         >
                                             Add Code
                                         </Button>
                                     </Box>
+                                    {(formData.accessCodes || []).length >= 3 && (
+                                        <Alert severity="info" sx={{ mb: 2 }}>
+                                            You can only add up to 3 access codes.
+                                        </Alert>
+                                    )}
                                     {(formData.accessCodes || []).length > 0 && (
                                         <TableContainer component={Paper} sx={{ mb: 2 }}>
                                             <Table size="small">
@@ -1990,10 +1999,16 @@ const SubscriptionForm: React.FC = () => {
                                                 px: 2,
                                                 py: 1
                                             }}
+                                            disabled={(formData.assignedUnits || []).length >= 1}
                                         >
                                             Add Unit
                                         </Button>
                                     </Box>
+                                    {(formData.assignedUnits || []).length >= 1 && (
+                                        <Alert severity="info" sx={{ mb: 2 }}>
+                                            You can only add 1 assigned unit.
+                                        </Alert>
+                                    )}
                                     {(formData.assignedUnits || []).length > 0 && (
                                         <TableContainer component={Paper} sx={{ mb: 2 }}>
                                             <Table size="small">
@@ -2078,11 +2093,16 @@ const SubscriptionForm: React.FC = () => {
                                             textTransform: 'none',
                                             fontWeight: 600
                                         }}
+                                        disabled={(formData.vehicles || []).length >= 3}
                                     >
                                         Add New Vehicle
                                     </Button>
                                 </Box>
-                                
+                                {(formData.vehicles || []).length >= 3 && (
+                                    <Alert severity="info" sx={{ mb: 2 }}>
+                                        You can only add up to 3 vehicles.
+                                    </Alert>
+                                )}
                                 {(formData.vehicles || []).length > 0 && (
                                     <TableContainer component={Paper} sx={{ mb: 2 }}>
                                         <Table>
