@@ -23,6 +23,15 @@ export interface Vehicle {
     state: string;
 }
 
+export interface SubscriptionPlan {
+    SubscriptionId: string;
+    SubscriptionName: string;
+    SubscriptionType: string;
+    SubscriptionEffectiveDate: Date;
+    SubscriptionInvoiceTemplate: string;
+
+}
+
 export interface SubscriptionData{
     RunId: number;
     AccountId: number;
@@ -66,6 +75,7 @@ export interface SubscriptionData{
     accessCodes: AccessCode[];
     assignedUnits: AssignedUnit[];
     vehicles: Vehicle[];
+    subscriptionPlans: SubscriptionPlan[];
     // Legacy fields for backward compatibility
     SubscriptionAccessCode1?: string;
     SubscriptionAccessCodeType1?: string;

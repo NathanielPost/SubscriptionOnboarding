@@ -44,14 +44,34 @@ const companyTheme = createTheme({
   },
 });
 
+const ACCOUNT_TEMPLATE_HEADERS = [
+  'name',
+  'firstname',
+  'lastname',
+  'email',
+  'phone',
+  'address 1',
+  'address 2',
+  'city',
+  'state',
+  'country',
+  'zipcode',
+  'Use account address as billing address? (Y/N)'
+];
+
 const SubscriptionForm: React.FC = () => {
     const [formData, setFormData] = useState<Partial<SubscriptionData>>({
+        RunId: 10,
         accessCodes: [],
         assignedUnits: [],
         vehicles: []
     } as Partial<SubscriptionData>);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [copyAccountToBilling, setCopyAccountToBilling] = useState(false);
+
+    // --- TOP OF FORM: Data Template Download & Import UI ---
+    const [importError, setImportError] = useState<string | null>(null);
+    const [importSuccess, setImportSuccess] = useState<string | null>(null);
 
     // Helper functions for dynamic arrays
     const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -424,16 +444,17 @@ const SubscriptionForm: React.FC = () => {
             case 'SubscriptionMemberVehicle2State':
             case 'SubscriptionMemberVehicle3State':
                 if (value && value.trim() !== '') {
-                    const validStatesProvinces = [
-                        // Canadian Provinces
-                        'AB', 'BC', 'MB', 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT',
-                        // US States
+                    const validStates = [
                         'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
                         'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
                         'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
                         'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
                         'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
                     ];
+                    const validProvinces = [
+                        'AB', 'BC', 'MB', 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'
+                    ];
+                    const validStatesProvinces = [...validStates, ...validProvinces];
                     if (!validStatesProvinces.includes(value.toUpperCase())) {
                         return 'Must be a valid US state or Canadian province abbreviation';
                     }
@@ -676,14 +697,14 @@ const SubscriptionForm: React.FC = () => {
     };
 
     const states = [
-        // Canadian Provinces
-        'AB', 'BC', 'MB', 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT',
-        // US States
         'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
         'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
         'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
         'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
         'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+    ];
+    const provinces = [
+        'AB', 'BC', 'MB', 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'
     ];
 
     const countries = ['CA', 'US'];
@@ -908,10 +929,164 @@ const SubscriptionForm: React.FC = () => {
         
         // Clear all errors when autofilling
         setErrors({});
-        
-        // Show success message
-        alert('Test data has been filled in successfully!');
     };
+
+    // Download Data Template
+    const handleDownloadTemplate = () => {
+        const ws = XLSX.utils.aoa_to_sheet([ACCOUNT_TEMPLATE_HEADERS]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'AccountTemplate');
+        XLSX.writeFile(wb, 'AccountDataTemplate.xlsx');
+    };
+
+    // Import Account Data
+    const handleImportAccountData = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setImportError(null);
+        setImportSuccess(null);
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const data = evt.target?.result;
+            if (!data) return;
+            try {
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                if (rows.length < 2) throw new Error('No data found in file.');
+                const header = (rows[0] as any[]).map((h: any) => (h || '').toString().trim().toLowerCase());
+                const row = rows[1];
+                const get = (col: string) => {
+                    const idx = header.indexOf(col.toLowerCase());
+                    return idx !== -1 ? row[idx] : '';
+                };
+                // Validate required columns
+                const requiredCols = ['firstname','lastname','email','phone','address 1','city','state','country','zipcode','use account address as billing address? (y/n)'];
+                for (const col of requiredCols) {
+                    if (!header.includes(col)) throw new Error(`Missing required column: ${col}`);
+                }
+                // Map Excel columns to form fields
+                setFormData(prev => {
+                    const useBilling = (get('use account address as billing address? (y/n)') || '').toString().toUpperCase().startsWith('Y');
+                    let parsedAccountId: number | undefined = undefined;
+                    const rawAccountId = prev.AccountId ?? get('accountid') ?? '';
+                    if (typeof rawAccountId === 'number') {
+                        parsedAccountId = rawAccountId;
+                    } else if (typeof rawAccountId === 'string' && rawAccountId.trim() !== '' && !isNaN(Number(rawAccountId))) {
+                        parsedAccountId = Number(rawAccountId);
+                    }
+                    return {
+                        ...prev,
+                        AccountId: parsedAccountId,
+                        AccountFirstName: get('firstname') || '',
+                        AccountLastName: get('lastname') || '',
+                        AccountEmail: get('email') || '',
+                        AccountPhone: get('phone') || '',
+                        AccountAddress1: get('address 1') || '',
+                        AccountAddress2: get('address 2') || '',
+                        AccountCity: get('city') || '',
+                        AccountState: get('state') || '',
+                        AccountCountry: get('country') || '',
+                        AccountPostalCode: get('zipcode') || '',
+                        AccountType: prev.AccountType || '',
+                        // Billing info
+                        AccountBillToName: useBilling ? `${get('firstname') || ''} ${get('lastname') || ''}`.trim() : '',
+                        AccountBillToFirstName: useBilling ? get('firstname') || '' : '',
+                        AccountBillToLastName: useBilling ? get('lastname') || '' : '',
+                        AccountBillToEmail: useBilling ? get('email') || '' : '',
+                        AccountBillToPhone: useBilling ? get('phone') || '' : '',
+                        AccountBillToAddress1: useBilling ? get('address 1') || '' : '',
+                        AccountBillToAddress2: useBilling ? get('address 2') || '' : '',
+                        AccountBillToCity: useBilling ? get('city') || '' : '',
+                        AccountBillToState: useBilling ? get('state') || '' : '',
+                        AccountBillToCountry: useBilling ? get('country') || '' : '',
+                        AccountBillToPostalCode: useBilling ? get('zipcode') || '' : '',
+                    };
+                });
+                // Automatically check or uncheck the billing checkbox
+                const useBilling = (get('use account address as billing address? (y/n)') || '').toString().toUpperCase().startsWith('Y');
+                setCopyAccountToBilling(useBilling);
+                setImportSuccess('Account data imported successfully!');
+            } catch (err: any) {
+                setImportError(err.message || 'Failed to import account data.');
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const validateAccountFields = () => {
+        const newErrors: { [key: string]: string } = {};
+        let isValid = true;
+
+        // Required fields validation for Account Information
+        const requiredFields: (keyof SubscriptionData)[] = [
+            'AccountId', 'AccountFirstName', 'AccountLastName', 'AccountEmail',
+            'AccountState', 'AccountPostalCode', 'AccountCountry', 'AccountType',
+        ];
+
+        requiredFields.forEach(field => {
+            const value = formData[field];
+            const error = validateField(field, value);
+            if (error) {
+                newErrors[field] = error;
+                isValid = false;
+            }
+        });
+
+        setErrors(prev => ({ ...prev, ...newErrors }));
+        return isValid;
+    };
+
+    const validateBillingFields = () => {
+        const newErrors: { [key: string]: string } = {};
+        let isValid = true;
+
+        // Required fields validation for Billing Information
+        const requiredFields: (keyof SubscriptionData)[] = [
+            'AccountBillToName', 'AccountBillToFirstName', 'AccountBillToLastName', 
+            'AccountBillToEmail', 'AccountBillToState', 'AccountBillToCountry',
+        ];
+
+        requiredFields.forEach(field => {
+            const value = formData[field];
+            const error = validateField(field, value);
+            if (error) {
+                newErrors[field] = error;
+                isValid = false;
+            }
+        });
+
+        setErrors(prev => ({ ...prev, ...newErrors }));
+        return isValid;
+    };
+
+    const handleAccountNext = () => {
+        if (validateAccountFields()) {
+            // Move to Billing Information section
+            const billingSection = document.getElementById('billing-section');
+            if (billingSection) {
+                billingSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    };
+
+    const handleBillingNext = () => {
+        if (validateBillingFields()) {
+            // Move to Subscription Plans section
+            const subscriptionSection = document.getElementById('subscription-section');
+            if (subscriptionSection) {
+                subscriptionSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    };
+
+    // --- BILLING STATE/PROVINCE AUTOCOMPLETE ---
+    const billingStateOptions = formData.AccountBillToCountry === 'US'
+        ? states
+        : formData.AccountBillToCountry === 'CA'
+            ? provinces
+            : [...states, ...provinces];
 
     return (
         <ThemeProvider theme={companyTheme}>
@@ -1030,6 +1205,49 @@ const SubscriptionForm: React.FC = () => {
                         </Button>
                     </Box>
 
+                    {/* --- TOP OF FORM: Data Template Download & Import UI --- */}
+                    <Paper sx={{ p: 4, my: 2 }}>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                            <Typography variant="h5" sx={{ color: '#B20838', fontWeight: 600, mr: 1 }}>
+                                Data Template and Import
+                            </Typography>
+                            <Tooltip title="Billing contact and address information">
+                                <InfoIcon sx={{ color: '#007dba', fontSize: 20 }} />
+                            </Tooltip>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={handleDownloadTemplate}
+                                sx={{ fontWeight: 600 }}
+                            >
+                                Download Data Template
+                            </Button>
+                            <label htmlFor="import-account-data" style={{ marginBottom: 0 }}>
+                                <input
+                                    id="import-account-data"
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    style={{ display: 'none' }}
+                                    onChange={handleImportAccountData}
+                                />
+                                <Button
+                                    variant="contained"
+                                    color="secondary"
+                                    component="span"
+                                    sx={{ fontWeight: 600 }}
+                                >
+                                    Import Account Data
+                                </Button>
+                            </label>
+                            {importError && (
+                                <Alert severity="error" sx={{ ml: 2 }}>{importError}</Alert>
+                            )}
+                            {importSuccess && (
+                                <Alert severity="success" sx={{ ml: 2 }}>{importSuccess}</Alert>
+                            )}
+                        </Box>
+                    </Paper>
+
                     {/* Account Information Section */}
                     <Paper sx={{ p: 4, mb: 4 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
@@ -1042,17 +1260,6 @@ const SubscriptionForm: React.FC = () => {
                         </Box>
 
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '15%' }, minWidth: 120 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Run ID *"
-                                    type="number"
-                                    value={formData.RunId || ''}
-                                    onChange={(e) => handleInputChange('RunId', parseInt(e.target.value))}
-                                    error={!!errors.RunId}
-                                    helperText={errors.RunId}
-                                />
-                            </Box>
                             <Box sx={{ flexBasis: { xs: '100%', md: '15%' }, minWidth: 120 }}>
                                 <TextField
                                     fullWidth
@@ -1131,20 +1338,31 @@ const SubscriptionForm: React.FC = () => {
                             <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
                                 <Autocomplete
                                     fullWidth
-                                    options={states}
+                                    options={
+                                        formData.AccountCountry === 'US'
+                                            ? states
+                                            : formData.AccountCountry === 'CA'
+                                                ? provinces
+                                                : [...states, ...provinces]
+                                    }
                                     value={formData.AccountState || ''}
                                     onChange={(_, newValue) => {
                                         handleInputChange('AccountState', newValue || '');
                                     }}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label="State/Province *"
-                                            error={!!errors.AccountState}
-                                            helperText={errors.AccountState}
-                                            required
-                                        />
-                                    )}
+                                    renderInput={(params) => {
+                                        let stateLabel = "State/Province";
+                                        if (formData.AccountCountry === 'US') stateLabel = "State";
+                                        else if (formData.AccountCountry === 'CA') stateLabel = "Province";
+                                        return (
+                                            <TextField
+                                                {...params}
+                                                label={stateLabel}
+                                                error={!!errors.AccountState}
+                                                helperText={errors.AccountState}
+                                                required
+                                            />
+                                        );
+                                    }}
                                 />
                             </Box>
                             <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
@@ -1385,129 +1603,203 @@ const SubscriptionForm: React.FC = () => {
                         </Box>
                     </Paper>
 
-                    {/* Subscription Information Section */}
+                    {/* Subscription Plans Section */}
                     <Paper sx={{ p: 4, mb: 4 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                             <Typography variant="h5" sx={{ color: '#B20838', fontWeight: 600, mr: 1 }}>
-                                Subscription Information
+                                Subscription Plans
                             </Typography>
-                            <Tooltip title="Subscription details and configuration">
+                            <Tooltip title="Add one or more subscription plans for this account">
                                 <InfoIcon sx={{ color: '#007dba', fontSize: 20 }} />
                             </Tooltip>
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={() => {
+                                    const now = new Date();
+                                    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                                    setFormData(prev => {
+                                        const nextId = ((prev.subscriptionPlans?.length || 0) + 1).toString();
+                                        const newPlan = {
+                                            id: generateId(),
+                                            SubscriptionId: nextId,
+                                            SubscriptionName: '',
+                                            SubscriptionType: 'EVERGREEN',
+                                            SubscriptionEffectiveDate: firstOfMonth,
+                                            SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
+                                        };
+                                        return {
+                                            ...prev,
+                                            subscriptionPlans: [
+                                                ...(prev.subscriptionPlans || []),
+                                                newPlan
+                                            ]
+                                        };
+                                    });
+                                }}
+                                sx={{
+                                    ml: 3,
+                                    backgroundColor: '#007dba',
+                                    '&:hover': { backgroundColor: '#005a94' },
+                                    borderRadius: '8px',
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    fontSize: '0.95rem',
+                                    px: 2,
+                                    py: 1
+                                }}
+                            >
+                                Add Subscription
+                            </Button>
                         </Box>
-
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Subscription ID"
-                                    type="number"
-                                    value={formData.SubscriptionId || ''}
-                                    onChange={(e) => handleInputChange('SubscriptionId', parseInt(e.target.value))}
-                                    required
-                                />
-                            </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Subscription Name"
-                                    value={formData.SubscriptionName || ''}
-                                    onChange={(e) => handleInputChange('SubscriptionName', e.target.value)}
-                                    required
-                                />
-                            </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
-                                <FormControl fullWidth error={!!errors.SubscriptionType}>
-                                    <InputLabel>Subscription Type *</InputLabel>
-                                    <Select
-                                        value={formData.SubscriptionType || ''}
-                                        onChange={(e: SelectChangeEvent) => handleInputChange('SubscriptionType', e.target.value)}
-                                        label="Subscription Type *"
-                                        required
-                                    >
-                                        {subscriptionTypes.map((type) => (
-                                            <MenuItem key={type} value={type}>{type}</MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.SubscriptionType && <FormHelperText>{errors.SubscriptionType}</FormHelperText>}
-                                </FormControl>
-                            </Box>
-
-                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Effective Date"
-                                    type="date"
-                                    value={formData.SubscriptionEffectiveDate
-                                        ? (formData.SubscriptionEffectiveDate instanceof Date
-                                            ? formData.SubscriptionEffectiveDate.toISOString().split('T')[0]
-                                            : typeof formData.SubscriptionEffectiveDate === 'string'
-                                                ? (formData.SubscriptionEffectiveDate as string).split('T')[0]
-                                                : '')
-                                        : ''
-                                    }
-                                    onChange={(e) => handleInputChange('SubscriptionEffectiveDate', new Date(e.target.value))}
-                                    InputLabelProps={{ shrink: true }}
-                                    required
-                                />
-                            </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
-                                <FormControl fullWidth error={!!errors.SubscriptionInvoiceTemplate}>
-                                    <InputLabel>Invoice Template *</InputLabel>
-                                    <Select
-                                        value={formData.SubscriptionInvoiceTemplate || ''}
-                                        onChange={(e: SelectChangeEvent) => handleInputChange('SubscriptionInvoiceTemplate', e.target.value)}
-                                        label="Invoice Template *"
-                                        required
-                                    >
-                                        {invoiceTemplates.map((template) => (
-                                            <MenuItem key={template} value={template}>{template}</MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.SubscriptionInvoiceTemplate && <FormHelperText>{errors.SubscriptionInvoiceTemplate}</FormHelperText>}
-                                </FormControl>
-                            </Box>
-                            {/* indigo Specifc - ignore }
-                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
-                                <FormControl fullWidth error={!!errors.SubscriptionDefaultLanguage}>
-                                    <InputLabel>Default Language</InputLabel>
-                                    <Select
-                                        value={formData.SubscriptionDefaultLanguage || ''}
-                                        onChange={(e: SelectChangeEvent) => handleInputChange('SubscriptionDefaultLanguage', e.target.value)}
-                                        label="Default Language "
-                                    >
-                                        {supportedLanguages.map((language) => (
-                                            <MenuItem key={language} value={language}>{language}</MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.SubscriptionDefaultLanguage && <FormHelperText>{errors.SubscriptionDefaultLanguage}</FormHelperText>}
-                                </FormControl>
-                            </Box>
-
-                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Tax Number 1"
-                                    value={formData.SubscriptionTaxNumber1 || ''}
-                                    onChange={(e) => handleInputChange('SubscriptionTaxNumber1', e.target.value)}
-                                    error={!!errors.SubscriptionTaxNumber1}
-                                    helperText={errors.SubscriptionTaxNumber1 || 'Format: XX-XXXXXXX, XXX-XX-XXXX, or 9-11 digits'}
-                                    placeholder="XX-XXXXXXX or XXX-XX-XXXX"
-                                />
-                            </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Tax Number 2"
-                                    value={formData.SubscriptionTaxNumber2 || ''}
-                                    onChange={(e) => handleInputChange('SubscriptionTaxNumber2', e.target.value)}
-                                    error={!!errors.SubscriptionTaxNumber2}
-                                    helperText={errors.SubscriptionTaxNumber2 || 'Format: XX-XXXXXXX, XXX-XX-XXXX, or 9-11 digits'}
-                                    placeholder="XX-XXXXXXX or XXX-XX-XXXX"
-                                />
-                            </Box>
-                            */}
-                        </Box>
+                        <TableContainer component={Paper}>
+                            <Table>
+                                <TableHead>
+                                    <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                                        <TableCell width="40px" align="center"></TableCell>
+                                        <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>Subscription ID</TableCell>
+                                        <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>Name</TableCell>
+                                        <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>Type</TableCell>
+                                        <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>Effective Date</TableCell>
+                                        <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>Invoice Template</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {(formData.subscriptionPlans || []).length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={6} align="center">
+                                                <Typography variant="body2" color="text.secondary">
+                                                    No subscription plans added yet. Click "Add Subscription" to get started.
+                                                </Typography>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                    {(formData.subscriptionPlans || []).map((plan: any, idx: number) => (
+                                        <TableRow key={plan.id}>
+                                            <TableCell align="center">
+                                                <IconButton
+                                                    onClick={() => {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            subscriptionPlans: (prev.subscriptionPlans || []).filter((p: any) => p.id !== plan.id)
+                                                        }));
+                                                    }}
+                                                    size="small"
+                                                    sx={{ color: '#B20838' }}
+                                                >
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </TableCell>
+                                            <TableCell>
+                                                <TextField
+                                                    sx={{ width: "100px" }}
+                                                    size="small"
+                                                    type="number"
+                                                    value={plan.SubscriptionId || ''}
+                                                    onChange={e => {
+                                                        const value = e.target.value;
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            subscriptionPlans: (prev.subscriptionPlans || []).map((p: any) =>
+                                                                p.id === plan.id ? { ...p, SubscriptionId: value } : p
+                                                            )
+                                                        }));
+                                                    }}
+                                                    required
+                                                    disabled
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <TextField
+                                                    fullWidth
+                                                    size="small"
+                                                    value={plan.SubscriptionName || ''}
+                                                    onChange={e => {
+                                                        const value = e.target.value;
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            subscriptionPlans: (prev.subscriptionPlans || []).map((p: any) =>
+                                                                p.id === plan.id ? { ...p, SubscriptionName: value } : p
+                                                            )
+                                                        }));
+                                                    }}
+                                                    required
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <FormControl fullWidth size="small">
+                                                    <Select
+                                                        value={plan.SubscriptionType || ''}
+                                                        onChange={e => {
+                                                            const value = e.target.value;
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                subscriptionPlans: (prev.subscriptionPlans || []).map((p: any) =>
+                                                                    p.id === plan.id ? { ...p, SubscriptionType: value } : p
+                                                                )
+                                                            }));
+                                                        }}
+                                                        required
+                                                    >
+                                                        {subscriptionTypes.map(type => (
+                                                            <MenuItem key={type} value={type}>{type}</MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                            </TableCell>
+                                            <TableCell>
+                                                <TextField
+                                                    fullWidth
+                                                    size="small"
+                                                    type="date"
+                                                    value={
+                                                        plan.SubscriptionEffectiveDate
+                                                            ? (plan.SubscriptionEffectiveDate instanceof Date
+                                                                ? plan.SubscriptionEffectiveDate.toISOString().split('T')[0]
+                                                                : typeof plan.SubscriptionEffectiveDate === 'string'
+                                                                    ? plan.SubscriptionEffectiveDate.split('T')[0]
+                                                                    : '')
+                                                            : ''
+                                                    }
+                                                    onChange={e => {
+                                                        const value = e.target.value;
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            subscriptionPlans: (prev.subscriptionPlans || []).map((p: any) =>
+                                                                p.id === plan.id ? { ...p, SubscriptionEffectiveDate: value } : p
+                                                            )
+                                                        }));
+                                                    }}
+                                                    InputLabelProps={{ shrink: true }}
+                                                    required
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <FormControl fullWidth size="small">
+                                                    <Select
+                                                        value={plan.SubscriptionInvoiceTemplate || ''}
+                                                        onChange={e => {
+                                                            const value = e.target.value;
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                subscriptionPlans: (prev.subscriptionPlans || []).map((p: any) =>
+                                                                    p.id === plan.id ? { ...p, SubscriptionInvoiceTemplate: value } : p
+                                                                )
+                                                            }));
+                                                        }}
+                                                        required
+                                                    >
+                                                        {invoiceTemplates.map(template => (
+                                                            <MenuItem key={template} value={template}>{template}</MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
                     </Paper>
 
                     {/* Member Information Section */}
@@ -1577,6 +1869,7 @@ const SubscriptionForm: React.FC = () => {
                                     fullWidth
                                     label="Member Rate Plan Name"
                                     value={formData.SubscriptionMemberRateplanName || ''}
+
                                     onChange={(e) => handleInputChange('SubscriptionMemberRateplanName', e.target.value)}
                                     required
                                 />
