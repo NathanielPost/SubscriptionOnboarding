@@ -1017,7 +1017,7 @@ const SubscriptionForm: React.FC = () => {
         };
         reader.readAsBinaryString(file);
     };
-
+    {/*
     const validateAccountFields = () => {
         const newErrors: { [key: string]: string } = {};
         let isValid = true;
@@ -1063,7 +1063,7 @@ const SubscriptionForm: React.FC = () => {
         setErrors(prev => ({ ...prev, ...newErrors }));
         return isValid;
     };
-    {/*}
+
     const handleAccountNext = () => {
         if (validateAccountFields()) {
             // Move to Billing Information section
