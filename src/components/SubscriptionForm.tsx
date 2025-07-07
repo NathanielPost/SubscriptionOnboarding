@@ -1063,7 +1063,7 @@ const SubscriptionForm: React.FC = () => {
         setErrors(prev => ({ ...prev, ...newErrors }));
         return isValid;
     };
-
+    {/*}
     const handleAccountNext = () => {
         if (validateAccountFields()) {
             // Move to Billing Information section
@@ -1090,7 +1090,7 @@ const SubscriptionForm: React.FC = () => {
         : formData.AccountBillToCountry === 'CA'
             ? provinces
             : [...states, ...provinces];
-
+    */}
     return (
         <ThemeProvider theme={companyTheme}>
             {/* Background */}
