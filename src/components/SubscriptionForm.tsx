@@ -3,7 +3,7 @@ import { SubscriptionData, AccessCode, AssignedUnit, Vehicle } from '../types/su
 import * as XLSX from 'xlsx';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
-  Box, Button, Grid, Typography, TextField, Select, MenuItem, FormControl, InputLabel, FormHelperText, Paper,
+  Box, Button, Typography, TextField, Select, MenuItem, FormControl, InputLabel, FormHelperText, Paper,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Alert, SelectChangeEvent,
   Autocomplete, Tooltip, Checkbox, FormControlLabel
 } from '@mui/material';
@@ -1041,8 +1041,8 @@ const SubscriptionForm: React.FC = () => {
                             </Tooltip>
                         </Box>
 
-                        <Grid container spacing={3}>
-                            <Grid size={{  xs: 12, md: 2 }}>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '15%' }, minWidth: 120 }}>
                                 <TextField
                                     fullWidth
                                     label="Run ID *"
@@ -1052,8 +1052,8 @@ const SubscriptionForm: React.FC = () => {
                                     error={!!errors.RunId}
                                     helperText={errors.RunId}
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 2 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '15%' }, minWidth: 120 }}>
                                 <TextField
                                     fullWidth
                                     label="Account ID *"
@@ -1063,8 +1063,8 @@ const SubscriptionForm: React.FC = () => {
                                     error={!!errors.AccountId}
                                     helperText={errors.AccountId}
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="First Name"
@@ -1074,8 +1074,8 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountFirstName}
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="Last Name"
@@ -1085,9 +1085,9 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountLastName}
                                     required
                                 />
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{  xs: 12, md: 6 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '48%' }, minWidth: 250 }}>
                                 <TextField
                                     fullWidth
                                     label="Email"
@@ -1098,8 +1098,8 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountEmail}
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 6 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '48%' }, minWidth: 250 }}>
                                 <TextField
                                     fullWidth
                                     label="Phone"
@@ -1109,26 +1109,26 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountPhone || 'Format: (XXX)XXX-XXXX'}
                                     placeholder="(XXX)XXX-XXXX"
                                 />
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{  xs: 12, md: 8 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '65%' }, minWidth: 300 }}>
                                 <TextField
                                     fullWidth
                                     label="Address Line 1"
                                     value={formData.AccountAddress1 || ''}
                                     onChange={(e) => handleInputChange('AccountAddress1', e.target.value)}
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="Address Line 2"
                                     value={formData.AccountAddress2 || ''}
                                     onChange={(e) => handleInputChange('AccountAddress2', e.target.value)}
                                 />
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{  xs: 12, md: 3 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
                                 <Autocomplete
                                     fullWidth
                                     options={states}
@@ -1146,16 +1146,16 @@ const SubscriptionForm: React.FC = () => {
                                         />
                                     )}
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 3 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
                                 <TextField
                                     fullWidth
                                     label="City"
                                     value={formData.AccountCity || ''}
                                     onChange={(e) => handleInputChange('AccountCity', e.target.value)}
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 3 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
                                 <TextField
                                     fullWidth
                                     label="Postal Code"
@@ -1166,8 +1166,8 @@ const SubscriptionForm: React.FC = () => {
                                     placeholder="12345 or A1A 1A1"
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 3 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
                                 <FormControl fullWidth error={!!errors.AccountCountry}>
                                     <InputLabel>Country *</InputLabel>
                                     <Select
@@ -1182,9 +1182,9 @@ const SubscriptionForm: React.FC = () => {
                                     </Select>
                                     {errors.AccountCountry && <FormHelperText>{errors.AccountCountry}</FormHelperText>}
                                 </FormControl>
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{  xs: 12, md: 6 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '48%' }, minWidth: 250 }}>
                                 <FormControl fullWidth error={!!errors.AccountType}>
                                     <InputLabel>Account Type *</InputLabel>
                                     <Select
@@ -1199,8 +1199,8 @@ const SubscriptionForm: React.FC = () => {
                                     </Select>
                                     {errors.AccountType && <FormHelperText>{errors.AccountType}</FormHelperText>}
                                 </FormControl>
-                            </Grid>
-                        </Grid>
+                            </Box>
+                        </Box>
                     </Paper>
 
                     {/* Billing Information Section */}
@@ -1236,8 +1236,8 @@ const SubscriptionForm: React.FC = () => {
                             </Box>
                         </Box>
 
-                        <Grid container spacing={3}>
-                            <Grid size={{  xs: 12, md: 4 }}>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="Bill To Name"
@@ -1248,8 +1248,8 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountBillToName}
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="First Name"
@@ -1260,8 +1260,8 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountBillToFirstName}
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="Last Name"
@@ -1272,9 +1272,9 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountBillToLastName}
                                     required
                                 />
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{  xs: 12, md: 6 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '48%' }, minWidth: 250 }}>
                                 <TextField
                                     fullWidth
                                     label="Email"
@@ -1286,8 +1286,8 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountBillToEmail}
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 6 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '48%' }, minWidth: 250 }}>
                                 <TextField
                                     fullWidth
                                     label="Phone"
@@ -1298,9 +1298,9 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountBillToPhone || 'Format: (XXX)XXX-XXXX'}
                                     placeholder="(XXX)XXX-XXXX"
                                 />
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{  xs: 12, md: 8 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '65%' }, minWidth: 300 }}>
                                 <TextField
                                     fullWidth
                                     label="Address 1"
@@ -1310,8 +1310,8 @@ const SubscriptionForm: React.FC = () => {
                                     error={!!errors.AccountBillToAddress1}
                                     helperText={errors.AccountBillToAddress1}
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="Address 2"
@@ -1321,9 +1321,9 @@ const SubscriptionForm: React.FC = () => {
                                     error={!!errors.AccountBillToAddress2}
                                     helperText={errors.AccountBillToAddress2}
                                 />
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{  xs: 12, md: 3 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
                                 <Autocomplete
                                     fullWidth
                                     options={states}
@@ -1342,8 +1342,8 @@ const SubscriptionForm: React.FC = () => {
                                         />
                                     )}
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 3 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
                                 <TextField
                                     fullWidth
                                     label="City"
@@ -1353,8 +1353,8 @@ const SubscriptionForm: React.FC = () => {
                                     error={!!errors.AccountBillToCity}
                                     helperText={errors.AccountBillToCity}
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 3 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
                                 <TextField
                                     fullWidth
                                     label="Postal Code"
@@ -1365,8 +1365,8 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountBillToPostalCode || 'US: 12345 or 12345-6789, CA: A1A 1A1'}
                                     placeholder="12345 or A1A 1A1"
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 3 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
                                 <FormControl fullWidth disabled={copyAccountToBilling} error={!!errors.AccountBillToCountry}>
                                     <InputLabel>Country *</InputLabel>
                                     <Select
@@ -1381,8 +1381,8 @@ const SubscriptionForm: React.FC = () => {
                                     </Select>
                                     {errors.AccountBillToCountry && <FormHelperText>{errors.AccountBillToCountry}</FormHelperText>}
                                 </FormControl>
-                            </Grid>
-                        </Grid>
+                            </Box>
+                        </Box>
                     </Paper>
 
                     {/* Subscription Information Section */}
@@ -1396,8 +1396,8 @@ const SubscriptionForm: React.FC = () => {
                             </Tooltip>
                         </Box>
 
-                        <Grid container spacing={3}>
-                            <Grid size={{  xs: 12, md: 3 }}>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Subscription ID"
@@ -1406,8 +1406,8 @@ const SubscriptionForm: React.FC = () => {
                                     onChange={(e) => handleInputChange('SubscriptionId', parseInt(e.target.value))}
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 5 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Subscription Name"
@@ -1415,8 +1415,8 @@ const SubscriptionForm: React.FC = () => {
                                     onChange={(e) => handleInputChange('SubscriptionName', e.target.value)}
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <FormControl fullWidth error={!!errors.SubscriptionType}>
                                     <InputLabel>Subscription Type *</InputLabel>
                                     <Select
@@ -1431,9 +1431,9 @@ const SubscriptionForm: React.FC = () => {
                                     </Select>
                                     {errors.SubscriptionType && <FormHelperText>{errors.SubscriptionType}</FormHelperText>}
                                 </FormControl>
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Effective Date"
@@ -1450,8 +1450,8 @@ const SubscriptionForm: React.FC = () => {
                                     InputLabelProps={{ shrink: true }}
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <FormControl fullWidth error={!!errors.SubscriptionInvoiceTemplate}>
                                     <InputLabel>Invoice Template *</InputLabel>
                                     <Select
@@ -1466,9 +1466,9 @@ const SubscriptionForm: React.FC = () => {
                                     </Select>
                                     {errors.SubscriptionInvoiceTemplate && <FormHelperText>{errors.SubscriptionInvoiceTemplate}</FormHelperText>}
                                 </FormControl>
-                            </Grid>
+                            </Box>
                             {/* indigo Specifc - ignore }
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <FormControl fullWidth error={!!errors.SubscriptionDefaultLanguage}>
                                     <InputLabel>Default Language</InputLabel>
                                     <Select
@@ -1482,9 +1482,9 @@ const SubscriptionForm: React.FC = () => {
                                     </Select>
                                     {errors.SubscriptionDefaultLanguage && <FormHelperText>{errors.SubscriptionDefaultLanguage}</FormHelperText>}
                                 </FormControl>
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{  xs: 12, md: 6 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Tax Number 1"
@@ -1494,8 +1494,8 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.SubscriptionTaxNumber1 || 'Format: XX-XXXXXXX, XXX-XX-XXXX, or 9-11 digits'}
                                     placeholder="XX-XXXXXXX or XXX-XX-XXXX"
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 6 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Tax Number 2"
@@ -1505,9 +1505,9 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.SubscriptionTaxNumber2 || 'Format: XX-XXXXXXX, XXX-XX-XXXX, or 9-11 digits'}
                                     placeholder="XX-XXXXXXX or XXX-XX-XXXX"
                                 />
-                            </Grid>
+                            </Box>
                             */}
-                        </Grid>
+                        </Box>
                     </Paper>
 
                     {/* Member Information Section */}
@@ -1521,8 +1521,8 @@ const SubscriptionForm: React.FC = () => {
                             </Tooltip>
                         </Box>
 
-                        <Grid container spacing={3}>
-                            <Grid size={{  xs: 12, md: 3 }}>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Member ID"
@@ -1531,8 +1531,8 @@ const SubscriptionForm: React.FC = () => {
                                     onChange={(e) => handleInputChange('SubscriptionMemberId', parseInt(e.target.value))}
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 4 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Member First Name"
@@ -1540,8 +1540,8 @@ const SubscriptionForm: React.FC = () => {
                                     onChange={(e) => handleInputChange('SubscriptionMemberFirstName', e.target.value)}
                                     required
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 5 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Member Last Name"
@@ -1549,9 +1549,9 @@ const SubscriptionForm: React.FC = () => {
                                     onChange={(e) => handleInputChange('SubscriptionMemberLastName', e.target.value)}
                                     required
                                 />
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{  xs: 12, md: 6 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Member Email"
@@ -1559,8 +1559,8 @@ const SubscriptionForm: React.FC = () => {
                                     value={formData.SubscriptionMemberEmail || ''}
                                     onChange={(e) => handleInputChange('SubscriptionMemberEmail', e.target.value)}
                                 />
-                            </Grid>
-                            <Grid size={{  xs: 12, md: 6 }}>
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Member Phone"
@@ -1570,9 +1570,9 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.SubscriptionMemberPhone || 'Format: (XXX)XXX-XXXX'}
                                     placeholder="(XXX)XXX-XXXX"
                                 />
-                            </Grid>
+                            </Box>
 
-                            <Grid size={{ xs: 12 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <TextField
                                     fullWidth
                                     label="Member Rate Plan Name"
@@ -1580,184 +1580,181 @@ const SubscriptionForm: React.FC = () => {
                                     onChange={(e) => handleInputChange('SubscriptionMemberRateplanName', e.target.value)}
                                     required
                                 />
-                            </Grid>
-
+                            </Box>
                             {/* Access Codes and Assigned Units - Side by Side */}
-                            <Grid size={{ xs: 12, md: 6 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                                    <Typography variant="h6" sx={{ color: '#007dba' }}>
-                                        Access Codes
-                                    </Typography>
-                                    <Button
-                                        variant="contained"
-                                        startIcon={<AddIcon />}
-                                        onClick={addAccessCode}
-                                        sx={{
-                                            backgroundColor: '#007dba',
-                                            '&:hover': { backgroundColor: '#005a94' },
-                                            borderRadius: '8px',
-                                            textTransform: 'none',
-                                            fontWeight: 600,
-                                            fontSize: '0.75rem',
-                                            px: 2,
-                                            py: 1
-                                        }}
-                                    >
-                                        Add Code
-                                    </Button>
-                                </Box>
-                                
-                                {(formData.accessCodes || []).length > 0 && (
-                                    <TableContainer component={Paper} sx={{ mb: 2 }}>
-                                        <Table size="small">
-                                            <TableHead>
-                                                <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                                                    <TableCell width="30px" align="center"></TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Code</TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Type</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {(formData.accessCodes || []).map((accessCode) => (
-                                                    <TableRow key={accessCode.id}>
-                                                        <TableCell align="center">
-                                                            <IconButton
-                                                                onClick={() => removeAccessCode(accessCode.id)}
-                                                                size="small"
-                                                                sx={{ color: '#B20838' }}
-                                                            >
-                                                                <DeleteIcon fontSize="small" />
-                                                            </IconButton>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <TextField
-                                                                fullWidth
-                                                                size="small"
-                                                                value={accessCode.code}
-                                                                onChange={(e) => updateAccessCode(accessCode.id, 'code', e.target.value)}
-                                                                placeholder="Enter code"
-                                                                variant="outlined"
-                                                                sx={{ minWidth: 100 }}
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <FormControl fullWidth size="small" sx={{ minWidth: 100 }}>
-                                                                <Select
-                                                                    value={accessCode.type}
-                                                                    onChange={(e: SelectChangeEvent) => updateAccessCode(accessCode.id, 'type', e.target.value)}
-                                                                    displayEmpty
+                            <Box sx={{ display: 'flex', gap: 3, width: '100%' }}>
+                                {/* Access Codes Table */}
+                                <Box sx={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                                        <Typography variant="h6" sx={{ color: '#007dba' }}>
+                                            Access Codes
+                                        </Typography>
+                                        <Button
+                                            variant="contained"
+                                            startIcon={<AddIcon />}
+                                            onClick={addAccessCode}
+                                            sx={{
+                                                backgroundColor: '#007dba',
+                                                '&:hover': { backgroundColor: '#005a94' },
+                                                borderRadius: '8px',
+                                                textTransform: 'none',
+                                                fontWeight: 600,
+                                                fontSize: '0.75rem',
+                                                px: 2,
+                                                py: 1
+                                            }}
+                                        >
+                                            Add Code
+                                        </Button>
+                                    </Box>
+                                    {(formData.accessCodes || []).length > 0 && (
+                                        <TableContainer component={Paper} sx={{ mb: 2 }}>
+                                            <Table size="small">
+                                                <TableHead>
+                                                    <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                                                        <TableCell width="30px" align="center"></TableCell>
+                                                        <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Code</TableCell>
+                                                        <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Type</TableCell>
+                                                    </TableRow>
+                                                </TableHead>
+                                                <TableBody>
+                                                    {(formData.accessCodes || []).map((accessCode) => (
+                                                        <TableRow key={accessCode.id}>
+                                                            <TableCell align="center">
+                                                                <IconButton
+                                                                    onClick={() => removeAccessCode(accessCode.id)}
+                                                                    size="small"
+                                                                    sx={{ color: '#B20838' }}
                                                                 >
-                                                                    <MenuItem value="">
-                                                                        <em>Type</em>
-                                                                    </MenuItem>
-                                                                    {accessCodeTypes.map((type) => (
-                                                                        <MenuItem key={type} value={type}>{type}</MenuItem>
-                                                                    ))}
-                                                                </Select>
-                                                            </FormControl>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                )}
-                                
-                                {(formData.accessCodes || []).length === 0 && (
-                                    <Box sx={{
-                                        textAlign: 'center',
-                                        py: 3,
-                                        backgroundColor: '#f8f9fa', 
-                                        borderRadius: 2,
-                                        border: '2px dashed #dee2e6'
-                                    }}>
-                                        <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                                            No access codes added yet. Click "Add Code" to get started.
-                                        </Typography>
-                                    </Box>
-                                )}
-                            </Grid>
-
-                            <Grid size={{ xs: 12, md: 6 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                                    <Typography variant="h6" sx={{ color: '#007dba' }}>
-                                        Assigned Units
-                                    </Typography>
-                                    <Button
-                                        variant="contained"
-                                        startIcon={<AddIcon />}
-                                        onClick={addAssignedUnit}
-                                        sx={{
-                                            backgroundColor: '#007dba',
-                                            '&:hover': { backgroundColor: '#005a94' },
-                                            borderRadius: '8px',
-                                            textTransform: 'none',
-                                            fontWeight: 600,
-                                            fontSize: '0.75rem',
-                                            px: 2,
-                                            py: 1
-                                        }}
-                                    >
-                                        Add Unit
-                                    </Button>
+                                                                    <DeleteIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <TextField
+                                                                    fullWidth
+                                                                    size="small"
+                                                                    value={accessCode.code}
+                                                                    onChange={(e) => updateAccessCode(accessCode.id, 'code', e.target.value)}
+                                                                    placeholder="Enter code"
+                                                                    variant="outlined"
+                                                                    sx={{ minWidth: 100 }}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <FormControl fullWidth size="small" sx={{ minWidth: 100 }}>
+                                                                    <Select
+                                                                        value={accessCode.type}
+                                                                        onChange={(e: SelectChangeEvent) => updateAccessCode(accessCode.id, 'type', e.target.value)}
+                                                                        displayEmpty
+                                                                    >
+                                                                        <MenuItem value="">
+                                                                            <em>Type</em>
+                                                                        </MenuItem>
+                                                                        {accessCodeTypes.map((type) => (
+                                                                            <MenuItem key={type} value={type}>{type}</MenuItem>
+                                                                        ))}
+                                                                    </Select>
+                                                                </FormControl>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </TableContainer>
+                                    )}
+                                    {(formData.accessCodes || []).length === 0 && (
+                                        <Box sx={{
+                                            textAlign: 'center',
+                                            py: 3,
+                                            backgroundColor: '#f8f9fa',
+                                            borderRadius: 2,
+                                            border: '2px dashed #dee2e6'
+                                        }}>
+                                            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                                                No access codes added yet. Click "Add Code" to get started.
+                                            </Typography>
+                                        </Box>
+                                    )}
                                 </Box>
-                                
-                                {(formData.assignedUnits || []).length > 0 && (
-                                    <TableContainer component={Paper} sx={{ mb: 2 }}>
-                                        <Table size="small">
-                                            <TableHead>
-                                                <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                                                    <TableCell width="30px" align="center"></TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Unit</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {(formData.assignedUnits || []).map((unit) => (
-                                                    <TableRow key={unit.id}>
-                                                        <TableCell align="center">
-                                                            <IconButton
-                                                                onClick={() => removeAssignedUnit(unit.id)}
-                                                                size="small"
-                                                                sx={{ color: '#B20838' }}
-                                                            >
-                                                                <DeleteIcon fontSize="small" />
-                                                            </IconButton>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <TextField
-                                                                fullWidth
-                                                                size="small"
-                                                                value={unit.unit}
-                                                                onChange={(e) => updateAssignedUnit(unit.id, 'unit', e.target.value)}
-                                                                placeholder="Unit"
-                                                                variant="outlined"
-                                                                sx={{ minWidth: 100 }}
-                                                            />
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                )}
-                                
-                                {(formData.assignedUnits || []).length === 0 && (
-                                    <Box sx={{ 
-                                        textAlign: 'center', 
-                                        py: 3, 
-                                        backgroundColor: '#f8f9fa', 
-                                        borderRadius: 2,
-                                        border: '2px dashed #dee2e6'
-                                    }}>
-                                        <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                                            No assigned units added yet. Click "Add Unit" to get started.
-                                        </Typography>
-                                    </Box>
-                                )}
-                            </Grid>
 
-                            
-                        </Grid>
+                                {/* Assigned Units Table */}
+                                <Box sx={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                                        <Typography variant="h6" sx={{ color: '#007dba' }}>
+                                            Assigned Units
+                                        </Typography>
+                                        <Button
+                                            variant="contained"
+                                            startIcon={<AddIcon />}
+                                            onClick={addAssignedUnit}
+                                            sx={{
+                                                backgroundColor: '#007dba',
+                                                '&:hover': { backgroundColor: '#005a94' },
+                                                borderRadius: '8px',
+                                                textTransform: 'none',
+                                                fontWeight: 600,
+                                                fontSize: '0.75rem',
+                                                px: 2,
+                                                py: 1
+                                            }}
+                                        >
+                                            Add Unit
+                                        </Button>
+                                    </Box>
+                                    {(formData.assignedUnits || []).length > 0 && (
+                                        <TableContainer component={Paper} sx={{ mb: 2 }}>
+                                            <Table size="small">
+                                                <TableHead>
+                                                    <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                                                        <TableCell width="30px" align="center"></TableCell>
+                                                        <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Unit</TableCell>
+                                                    </TableRow>
+                                                </TableHead>
+                                                <TableBody>
+                                                    {(formData.assignedUnits || []).map((unit) => (
+                                                        <TableRow key={unit.id}>
+                                                            <TableCell align="center">
+                                                                <IconButton
+                                                                    onClick={() => removeAssignedUnit(unit.id)}
+                                                                    size="small"
+                                                                    sx={{ color: '#B20838' }}
+                                                                >
+                                                                    <DeleteIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <TextField
+                                                                    fullWidth
+                                                                    size="small"
+                                                                    value={unit.unit}
+                                                                    onChange={(e) => updateAssignedUnit(unit.id, 'unit', e.target.value)}
+                                                                    placeholder="Unit"
+                                                                    variant="outlined"
+                                                                    sx={{ minWidth: 100 }}
+                                                                />
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </TableContainer>
+                                    )}
+                                    {(formData.assignedUnits || []).length === 0 && (
+                                        <Box sx={{
+                                            textAlign: 'center',
+                                            py: 3,
+                                            backgroundColor: '#f8f9fa',
+                                            borderRadius: 2,
+                                            border: '2px dashed #dee2e6'
+                                        }}>
+                                            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                                                No assigned units added yet. Click "Add Unit" to get started.
+                                            </Typography>
+                                        </Box>
+                                    )}
+                                </Box>
+                            </Box>
+                        </Box>
                     </Paper>
 
                     {/* Vehicle Information Section */}
@@ -1771,8 +1768,8 @@ const SubscriptionForm: React.FC = () => {
                             </Tooltip>
                         </Box>
 
-                        <Grid container spacing={3}>
-                            <Grid size={{ xs: 12 }}>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                                     <Typography variant="h6" sx={{ color: '#007dba' }}>
                                         Vehicles
@@ -1926,8 +1923,8 @@ const SubscriptionForm: React.FC = () => {
                                         </Typography>
                                     </Box>
                                 )}
-                            </Grid>
-                        </Grid>
+                            </Box>
+                        </Box>
                     </Paper>
 
                     {/* Submit Button */}
