@@ -10,6 +10,7 @@ import {
 import InfoIcon from '@mui/icons-material/Info';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import type { SubscriptionPlan } from '../types/subscription'; // Adjust the path as needed
 
 
 // Theme creation
@@ -1785,8 +1786,7 @@ const SubscriptionForm: React.FC = () => {
                                     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
                                     setFormData(prev => {
                                         const nextId = ((prev.subscriptionPlans?.length || 0) + 1);
-                                        const newPlan = {
-                                            id: generateId(),
+                                        const newPlan: SubscriptionPlan = {
                                             SubscriptionId: nextId,
                                             SubscriptionName: '',
                                             SubscriptionType: 'EVERGREEN',
@@ -1799,7 +1799,10 @@ const SubscriptionForm: React.FC = () => {
                                                     SubscriptionMemberEmail: formData.AccountEmail || '',
                                                     SubscriptionMemberPhone: formData.AccountPhone || '',
                                                     SubscriptionMemberRateplanName: ''
-                                                }]
+                                            }],
+                                            accessCodes: [],
+                                            assignedUnits: [],
+                                            vehicles: []
                                         }
                                         return {
                                             ...prev,
