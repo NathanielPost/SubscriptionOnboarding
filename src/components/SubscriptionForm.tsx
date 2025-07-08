@@ -824,59 +824,80 @@ const SubscriptionForm: React.FC = () => {
     // Helper function to convert dynamic arrays back to legacy format for Excel export
     // Converts all accounts to an array of legacy-format objects (one per account)
     const convertAllAccountsToLegacyRows = (accounts: Partial<SubscriptionData>[]): any[] => {
-        return accounts.map((data) => {
-            const legacyData: { [key: string]: any } = { ...data };
-            legacyData['AccountName'] = `${data.AccountFirstName || ''} ${data.AccountLastName || ''}`.trim();
+        const rows: any[] = [];
+        accounts.forEach(account => {
+            (account.subscriptionPlans || []).forEach(plan => {
+                (plan.SubscriptionMembers || []).forEach(member => {
+                    const row: { [key: string]: any } = {
+                        // Account Info
+                        RunId: 10,
+                        AccountId: account.AccountId,
+                    
+                        AccountFirstName: account.AccountFirstName,
+                        AccountLastName: account.AccountLastName,
+                        AccountName: account.AccountFirstName + ' ' + account.AccountLastName,
+                        AccountEmail: account.AccountEmail,
+                        AccountPhone: account.AccountPhone,
+                        AccountAddress1: account.AccountAddress1,
+                        AccountAddress2: account.AccountAddress2,
+                        AccountCity: account.AccountCity,
+                        AccountState: account.AccountState,
+                        AccountPostalCode: account.AccountPostalCode,
+                        AccountCountry: account.AccountCountry,
+                        AccountType: account.AccountType,
+                        // Billing Info
+                        AccountBillToName: account.AccountBillToName,
+                        AccountBillToFirstName: account.AccountBillToFirstName,
+                        AccountBillToLastName: account.AccountBillToLastName,
+                        AccountBillToEmail: account.AccountBillToEmail,
+                        AccountBillToPhone: account.AccountBillToPhone,
+                        AccountBillToAddress1: account.AccountBillToAddress1,
+                        AccountBillToAddress2: account.AccountBillToAddress2,
+                        AccountBillToCity: account.AccountBillToCity,
+                        AccountBillToState: account.AccountBillToState,
+                        AccountBillToPostalCode: account.AccountBillToPostalCode,
+                        AccountBillToCountry: account.AccountBillToCountry,
+                        // Plan Info
+                        SubscriptionId: plan.SubscriptionId,
+                        SubscriptionName: plan.SubscriptionName,
+                        SubscriptionType: plan.SubscriptionType,
+                        SubscriptionEffectiveDate: plan.SubscriptionEffectiveDate,
+                        SubscriptionInvoiceTemplate: plan.SubscriptionInvoiceTemplate,
+                        // Member Info
+                        SubscriptionMemberId: member.SubscriptionMemberId,
+                        SubscriptionMemberFirstName: member.SubscriptionMemberFirstName,
+                        SubscriptionMemberLastName: member.SubscriptionMemberLastName,
+                        SubscriptionMemberEmail: member.SubscriptionMemberEmail,
+                        SubscriptionMemberPhone: member.SubscriptionMemberPhone,
+                        SubscriptionMemberRateplanName: member.SubscriptionMemberRateplanName,
+                    };
 
-            // Convert access codes array to legacy fields
-            const firstPlan = data.subscriptionPlans?.[0];
-            const firstMember = firstPlan?.SubscriptionMembers?.[0];
+                    // Access Codes (up to 3)
+                    (member.accessCodes || []).slice(0, 3).forEach((code, i) => {
+                        row[`SubscriptionAccessCode${i + 1}`] = code.code;
+                        row[`SubscriptionAccessCodeType${i + 1}`] = code.type;
+                    });
 
-            // Convert access codes array to legacy fields
-            if (firstMember?.accessCodes && firstMember.accessCodes.length > 0) {
-                firstMember.accessCodes.forEach((accessCode: AccessCode, index: number) => {
-                    if (index < 3) {
-                        legacyData[`SubscriptionAccessCode${index + 1}`] = accessCode.code;
-                        legacyData[`SubscriptionAccessCodeType${index + 1}`] = accessCode.type;
-                    }
+                    // Assigned Units (up to 3)
+                    (member.assignedUnits || []).slice(0, 3).forEach((unit, i) => {
+                        row[`SubscriptionMemberAssignedUnit${i + 1}`] = unit.unit;
+                    });
+
+                    // Vehicles (up to 3)
+                    (member.vehicles || []).slice(0, 3).forEach((vehicle, i) => {
+                        row[`SubscriptionMemberVehicle${i + 1}Name`] = vehicle.name;
+                        row[`SubscriptionMemberVehicle${i + 1}PlateNumber`] = vehicle.plateNumber;
+                        row[`SubscriptionMemberVehicle${i + 1}State`] = vehicle.state;
+                        row[`SubscriptionMemberVehicle${i + 1}Color`] = vehicle.color;
+                        row[`SubscriptionMemberVehicle${i + 1}Make`] = vehicle.make;
+                        row[`SubscriptionMemberVehicle${i + 1}Model`] = vehicle.model;
+                    });
+
+                    rows.push(row);
                 });
-            }
-
-            // Convert assigned units array to legacy fields
-            if (firstMember?.assignedUnits && firstMember.assignedUnits.length > 0) {
-                firstMember.assignedUnits.forEach((unit: AssignedUnit, index: number) => {
-                    if (index < 3) {
-                        legacyData[`SubscriptionMemberAssignedUnit${index + 1}`] = unit.unit;
-                    }
-                });
-            }
-
-            // Convert vehicles array to legacy fields
-            if (firstMember?.vehicles && firstMember.vehicles.length > 0) {
-                firstMember.vehicles.forEach((vehicle: Vehicle, index: number) => {
-                    if (index < 3) {
-                        legacyData[`SubscriptionMemberVehicle${index + 1}Name`] = vehicle.name;
-                        legacyData[`SubscriptionMemberVehicle${index + 1}PlateNumber`] = vehicle.plateNumber;
-                        legacyData[`SubscriptionMemberVehicle${index + 1}Make`] = vehicle.make;
-                        legacyData[`SubscriptionMemberVehicle${index + 1}Model`] = vehicle.model;
-                        legacyData[`SubscriptionMemberVehicle${index + 1}Color`] = vehicle.color;
-                        legacyData[`SubscriptionMemberVehicle${index + 1}State`] = vehicle.state;
-                    }
-                });
-            }
-
-            // Convert Date object to string for Excel
-            if (legacyData.SubscriptionEffectiveDate instanceof Date) {
-                legacyData.SubscriptionEffectiveDate = legacyData.SubscriptionEffectiveDate.toISOString().split('T')[0];
-            }
-
-            // Remove the dynamic arrays from the export data
-            delete legacyData.accessCodes;
-            delete legacyData.assignedUnits;
-            delete legacyData.vehicles;
-
-            return legacyData;
+            });
         });
+        return rows;
     };
 
     // Helper function to generate Excel file
@@ -1121,41 +1142,6 @@ const SubscriptionForm: React.FC = () => {
 
                 }
             ],
-            
-            // Legacy fields for backward compatibility
-            SubscriptionAccessCode1: 'ABC123',
-            SubscriptionAccessCodeType1: 'PROXCARD',
-            SubscriptionAccessCode2: 'DEF456',
-            SubscriptionAccessCodeType2: 'PERMIT',
-            SubscriptionAccessCode3: 'GHI789',
-            SubscriptionAccessCodeType3: 'PROXCARD',
-            
-            // Assigned Units
-            SubscriptionMemberAssignedUnit1: 'A101',
-            SubscriptionMemberAssignedUnit2: 'B205',
-            SubscriptionMemberAssignedUnit3: 'C303',
-            
-            // Vehicle Information
-            SubscriptionMemberVehicle1Name: 'Primary Car',
-            SubscriptionMemberVehicle1PlateNumber: 'ABC123',
-            SubscriptionMemberVehicle1Make: 'Toyota',
-            SubscriptionMemberVehicle1Model: 'Camry',
-            SubscriptionMemberVehicle1Color: 'Blue',
-            SubscriptionMemberVehicle1State: 'NY',
-            
-            SubscriptionMemberVehicle2Name: 'Secondary Car',
-            SubscriptionMemberVehicle2PlateNumber: 'XYZ789',
-            SubscriptionMemberVehicle2Make: 'Honda',
-            SubscriptionMemberVehicle2Model: 'Civic',
-            SubscriptionMemberVehicle2Color: 'Red',
-            SubscriptionMemberVehicle2State: 'BC',
-            
-            SubscriptionMemberVehicle3Name: 'Work Truck',
-            SubscriptionMemberVehicle3PlateNumber: 'TRK456',
-            SubscriptionMemberVehicle3Make: 'Ford',
-            SubscriptionMemberVehicle3Model: 'F150',
-            SubscriptionMemberVehicle3Color: 'White',
-            SubscriptionMemberVehicle3State: 'CA'
         };
         
         setAccounts(prev => prev.map((account, idx) => 
