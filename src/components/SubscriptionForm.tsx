@@ -976,7 +976,6 @@ const SubscriptionForm: React.FC = () => {
     const subscriptionTypes = ['TERMED', 'EVERGREEN'];
     const invoiceTemplates = ['LAZ_STANDARD', 'LAZ_SUMMARY'];
     const accessCodeTypes = ['PERMIT', 'PROXCARD'];
-    const vehicleColors = ['Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Silver', 'Gray', 'Grey', 'Brown', 'Orange', 'Purple', 'Pink', 'Gold', 'Beige', 'Tan', 'Maroon', 'Navy'];
 
     const formatPhoneNumber = (value: string): string => {
         // Remove all non-digits
@@ -1340,7 +1339,7 @@ const SubscriptionForm: React.FC = () => {
     */ }
     const addMember = () => {
         // Add member to the first subscription plan (if exists)
-        if ((currentAccount.subscriptionPlans && currentAccount.subscriptionPlans[0]?.SubscriptionMembers || []).length >= 3) return;
+        // if ((currentAccount.subscriptionPlans && currentAccount.subscriptionPlans[0]?.SubscriptionMembers || []).length >= 10) return;
         // Find the highest existing SubscriptionMemberId and increment
         const members = currentAccount.subscriptionPlans?.[0]?.SubscriptionMembers || [];
         const maxId = members.reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
@@ -2408,18 +2407,25 @@ const SubscriptionForm: React.FC = () => {
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Access Codes</Typography>
           {(member.accessCodes || []).map((code, codeIdx) => (
             <Box key={code.id || codeIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <TextField
-                label="Code"
-                value={code.code}
-                onChange={e => updateAccessCode(plan.SubscriptionId, member.SubscriptionMemberId, code.id, 'code', e.target.value)}
-                sx={{ minWidth: 120 }}
-              />
-              <TextField
-                label="Type"
-                value={code.type}
-                onChange={e => updateAccessCode(plan.SubscriptionId, member.SubscriptionMemberId, code.id, 'type', e.target.value)}
-                sx={{ minWidth: 100 }}
-              />
+                <TextField
+                    label="Code"
+                    value={code.code}
+                    onChange={e => updateAccessCode(plan.SubscriptionId, member.SubscriptionMemberId, code.id, 'code', e.target.value)}
+                    sx={{ minWidth: 120 }}
+                />
+                <FormControl sx={{ minWidth: 100 }}>
+                    <InputLabel id={`access-code-type-label-${member.SubscriptionMemberId}-${codeIdx}`}>Type</InputLabel>
+                    <Select
+                    labelId={`access-code-type-label-${member.SubscriptionMemberId}-${codeIdx}`}
+                    value={code.type}
+                    label="Type"
+                    onChange={e => updateAccessCode(plan.SubscriptionId, member.SubscriptionMemberId, code.id, 'type', e.target.value)}
+                    >
+                    {accessCodeTypes.map(type => (
+                        <MenuItem key={type} value={type}>{type}</MenuItem>
+                    ))}
+                    </Select>
+                </FormControl>
               <IconButton onClick={() => removeAccessCode(code.id)} size="small"><DeleteIcon /></IconButton>
             </Box>
           ))}
