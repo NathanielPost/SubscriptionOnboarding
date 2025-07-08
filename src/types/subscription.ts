@@ -26,19 +26,19 @@ export interface SubscriptionPlan {
     SubscriptionEffectiveDate: Date;
     SubscriptionInvoiceTemplate: string;
     SubscriptionMembers: memberInfo[];
-    accessCodes: AccessCode[];
-    assignedUnits: AssignedUnit[];
-    vehicles: Vehicle[];
-    
 }
 
 export interface memberInfo {
+    SubscriptionId: number;
     SubscriptionMemberId: number;
     SubscriptionMemberFirstName: string;
     SubscriptionMemberLastName: string;
     SubscriptionMemberEmail?: string;
     SubscriptionMemberPhone?: string;
     SubscriptionMemberRateplanName: string;
+    accessCodes: AccessCode[];
+    assignedUnits: AssignedUnit[];
+    vehicles: Vehicle[];
 }
 
 export interface SubscriptionData{
@@ -82,9 +82,6 @@ export interface SubscriptionData{
     SubscriptionMemberRateplanName: string;
     // Dynamic arrays for table-based sections
     
-    accessCodes: AccessCode[];
-    assignedUnits: AssignedUnit[];
-    vehicles: Vehicle[];
     subscriptionPlans: SubscriptionPlan[];
     // Legacy fields for backward compatibility
     /*

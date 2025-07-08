@@ -153,10 +153,10 @@ const SubscriptionForm: React.FC = () => {
     const [activeAccountIndex, setActiveAccountIndex] = useState(0);
     const currentAccount = accounts[activeAccountIndex] || {};
     const plan = currentAccount.subscriptionPlans && currentAccount.subscriptionPlans.length > 0 ? currentAccount.subscriptionPlans[0] : undefined;
-    const member = plan?.SubscriptionMembers[0];
-    const accessCodes = member?.accessCodes || [];
-    const assignedUnits = member?.assignedUnits || [];
-    const vehicles = member?.vehicles || [];
+    // const member = plan?.SubscriptionMembers[0];
+    // const accessCodes = member?.accessCodes || [];
+    // const assignedUnits = member?.assignedUnits || [];
+    // const vehicles = member?.vehicles || [];
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [copyAccountToBilling, setCopyAccountToBilling] = useState(false);
 
