@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SubscriptionData, AccessCode, AssignedUnit, Vehicle } from '../types/subscription';
 import * as XLSX from 'xlsx';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -61,6 +61,9 @@ const ACCOUNT_TEMPLATE_HEADERS = [
 ];
 
 const SubscriptionForm: React.FC = () => {
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
     const getAccountId = (): number => {
         const key = 'accountIdCounter';
         const currentId = parseInt(localStorage.getItem(key) || '1', 10);
@@ -704,6 +707,7 @@ const SubscriptionForm: React.FC = () => {
         e.preventDefault();
         formData.RunId = 10;
         console.log('Form submitted:', formData);
+        console.log("current position", window.scrollY);
         if (validateForm()) {
             try {
                 // Generate and download the Excel file
@@ -716,7 +720,7 @@ const SubscriptionForm: React.FC = () => {
                 alert(`Form submitted successfully! The Excel file "${filename}" has been downloaded to your Downloads folder.`);
                 changeAccountId();
                 window.location.reload();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
             } catch (error) {
                 console.error('Error during form submission:', error);
                 alert('Form submitted successfully, but there was an error generating the Excel file. Please try again.');
@@ -724,6 +728,7 @@ const SubscriptionForm: React.FC = () => {
         } else {
             console.log('Form has validation errors');
             alert('Please fix all validation errors before submitting.');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
 
@@ -954,7 +959,7 @@ const SubscriptionForm: React.FC = () => {
         
         // Clear all errors when autofilling
         setErrors({});
-        window.scrollTo({ top: 6000, behavior: 'smooth' });
+        window.scrollTo({ top: 2098, behavior: 'smooth' });
     };
 
     // Download Data Template
@@ -1034,6 +1039,7 @@ const SubscriptionForm: React.FC = () => {
                 const useBilling = (get('use account address as billing address? (y/n)') || '').toString().toUpperCase().startsWith('Y');
                 setCopyAccountToBilling(useBilling);
                 setImportSuccess('Account data imported successfully!');
+                window.scrollTo({ top: 200, behavior: 'smooth' });
             } catch (err: any) {
                 setImportError(err.message || 'Failed to import account data.');
             }
