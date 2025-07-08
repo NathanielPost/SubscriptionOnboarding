@@ -20,7 +20,7 @@ export interface Vehicle {
 }
 
 export interface SubscriptionPlan {
-    SubscriptionId: string;
+    SubscriptionId: number;
     SubscriptionName: string;
     SubscriptionType: string;
     SubscriptionEffectiveDate: Date;
