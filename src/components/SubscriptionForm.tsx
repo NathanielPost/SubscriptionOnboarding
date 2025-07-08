@@ -159,6 +159,7 @@ const SubscriptionForm: React.FC = () => {
         setAccounts(prev => [...prev, newAccount]);
     };
 
+
     const deleteAccount = (index: number) => {
         if (accounts.length > 1) {
             setAccounts(prev => prev.filter((_, i) => i !== index));
@@ -1448,6 +1449,14 @@ const SubscriptionForm: React.FC = () => {
                                 sx={{ backgroundColor: '#007dba' }}
                             >
                                 Add New Account
+                            </Button>
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={() => duplicateAccount(activeAccountIndex)}
+                                sx={{ backgroundColor: 'secondary.main' }}
+                            >
+                                Duplicate Current Account
                             </Button>
                         </Box>
                         
