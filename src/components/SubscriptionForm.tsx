@@ -61,20 +61,25 @@ const ACCOUNT_TEMPLATE_HEADERS = [
 ];
 
 const SubscriptionForm: React.FC = () => {
-    const getNextAccountId = () => {
+    const getAccountId = (): number => {
         const key = 'accountIdCounter';
-        const current = parseInt(localStorage.getItem(key) || '0', 10);
-        const next = current + .5;
-        localStorage.setItem(key, next.toString());
-        return current;
+        const currentId = parseInt(localStorage.getItem(key) || '1', 10);
+        localStorage.setItem(key, (currentId).toString());
+        return currentId;
     };
+    const changeAccountId = () => {
+        const key = 'accountIdCounter';
+        const currentId = parseInt(localStorage.getItem(key) || '1', 10);
+        localStorage.setItem(key, (currentId + 1).toString());
+        return currentId + 1;
+    }
     const resetAccountIdCounter = () => {
         const key = 'accountIdCounter';
-        localStorage.setItem(key, '0');
+        localStorage.setItem(key, '1');
         // Reset the form and assign a new Account ID
         setFormData({
             RunId: 10,
-            AccountId: getNextAccountId(),
+            AccountId: getAccountId(),
             accessCodes: [],
             assignedUnits: [],
             vehicles: []
@@ -89,7 +94,7 @@ const SubscriptionForm: React.FC = () => {
     }
     const [formData, setFormData] = useState<Partial<SubscriptionData>>({
         RunId: 10,
-        AccountId: getNextAccountId(), // Use a function to get the next account ID
+        AccountId: getAccountId(), // Use a function to get the next account ID
         accessCodes: [],
         assignedUnits: [],
         vehicles: []
@@ -107,10 +112,7 @@ const SubscriptionForm: React.FC = () => {
     const addAccessCode = () => {
         if ((formData.accessCodes || []).length >= 3) return;
         const newAccessCode: AccessCode = {
-            id: generateId(),
             code: '',
-            name: '',
-            description: '',
             type: ''
         };
         setFormData(prev => ({
@@ -146,10 +148,7 @@ const SubscriptionForm: React.FC = () => {
     const addAssignedUnit = () => {
         if ((formData.assignedUnits || []).length >= 1) return;
         const newUnit: AssignedUnit = {
-            id: generateId(),
             unit: '',
-            name: '',
-            description: ''
         };
         setFormData(prev => ({
             ...prev,
@@ -225,13 +224,13 @@ const SubscriptionForm: React.FC = () => {
     const validateField = (field: keyof SubscriptionData, value: any): string => {
         switch (field) {
             case 'RunId':
-                if (!value || value <= 0) return 'Run ID is required and must be a positive number';
+                if (!value || value <= -1) return 'Run ID is required and must be a positive number';
                 if (value > 10000) return 'Run ID must be 10000 or less';
                 break;
 
             case 'AccountId':
                 if (!value || value <= 0) return 'Account ID is required and must be a positive number';
-                if (value < 10 || value > 999999) return 'Account ID must be between 10 and 999999';
+                if (value < 0 || value > 999999) return 'Account ID must be between 0 and 999999';
                 break;
 
             case 'AccountFirstName':
@@ -312,10 +311,6 @@ const SubscriptionForm: React.FC = () => {
                 if (!value || value.trim() === '') return 'Account Type is required';
                 const validTypes = ['Corporate', 'Individual'];
                 if (!validTypes.includes(value)) return 'Must be Corporate or Individual';
-                break;
-
-            case 'SubscriptionId':
-                if (!value || value <= 0) return 'Subscription ID is required and must be a positive number';
                 break;
 
             case 'SubscriptionName':
@@ -707,7 +702,8 @@ const SubscriptionForm: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+        formData.RunId = 10;
+        console.log('Form submitted:', formData);
         if (validateForm()) {
             try {
                 // Generate and download the Excel file
@@ -718,6 +714,9 @@ const SubscriptionForm: React.FC = () => {
                 
                 // Show success message
                 alert(`Form submitted successfully! The Excel file "${filename}" has been downloaded to your Downloads folder.`);
+                changeAccountId();
+                window.location.reload();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             } catch (error) {
                 console.error('Error during form submission:', error);
                 alert('Form submitted successfully, but there was an error generating the Excel file. Please try again.');
@@ -798,6 +797,8 @@ const SubscriptionForm: React.FC = () => {
     const handleAutofillTestData = () => {
         const testData: Partial<SubscriptionData> = {
             // Account Information
+            RunId: 10,
+            AccountId: getAccountId(),
             AccountFirstName: 'John',
             AccountLastName: 'Doe',
             AccountEmail: 'john.doe@example.com',
@@ -833,33 +834,44 @@ const SubscriptionForm: React.FC = () => {
             SubscriptionTaxNumber2: '987-65-4321',
             
             // Member Information
+            SubscriptionMemberId: 1,
             SubscriptionMemberFirstName: 'Jane',
             SubscriptionMemberLastName: 'Smith',
             SubscriptionMemberEmail: 'jane.smith@example.com',
             SubscriptionMemberPhone: '(555)555-0123',
             SubscriptionMemberRateplanName: 'Standard Monthly Plan',
             
+            // subscription plans
+            subscriptionPlans: [
+                {
+                    SubscriptionId: 1,
+                    SubscriptionName: 'Standard Monthly Plan',
+                    SubscriptionType: 'TERMED',
+                    SubscriptionEffectiveDate: new Date('2025-08-01'),
+                    SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
+                },
+                {
+                    SubscriptionId: 2,
+                    SubscriptionName: 'Premium Yearly Plan',
+                    SubscriptionType: 'TERMED',
+                    SubscriptionEffectiveDate: new Date('2025-08-01'),
+                    SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
+                }
+            ],
+
+
             // Access Codes (new dynamic structure)
             accessCodes: [
                 {
-                    id: 'ac1',
                     code: 'ABC123',
-                    name: 'Primary Access',
-                    description: 'Main entrance card',
                     type: 'PROXCARD'
                 },
                 {
-                    id: 'ac2',
                     code: 'DEF456',
-                    name: 'Secondary Access',
-                    description: 'Backup permit',
                     type: 'PERMIT'
                 },
                 {
-                    id: 'ac3',
                     code: 'GHI789',
-                    name: 'Visitor Access',
-                    description: 'Guest access card',
                     type: 'PROXCARD'
                 }
             ],
@@ -867,25 +879,10 @@ const SubscriptionForm: React.FC = () => {
             // Assigned Units (new dynamic structure)
             assignedUnits: [
                 {
-                    id: 'au1',
-                    unit: 'A101',
-                    name: 'Primary Unit',
-                    description: 'Main parking space'
-                },
-                {
-                    id: 'au2',
-                    unit: 'B205',
-                    name: 'Secondary Unit',
-                    description: 'Overflow parking'
-                },
-                {
-                    id: 'au3',
-                    unit: 'C303',
-                    name: 'Storage Unit',
-                    description: 'Storage space'
+                    unit: 'A101'
                 }
             ],
-            
+
             // Vehicles (new dynamic structure)
             vehicles: [
                 {
@@ -957,6 +954,7 @@ const SubscriptionForm: React.FC = () => {
         
         // Clear all errors when autofilling
         setErrors({});
+        window.scrollTo({ top: 6000, behavior: 'smooth' });
     };
 
     // Download Data Template
@@ -1308,7 +1306,7 @@ const SubscriptionForm: React.FC = () => {
                                     fullWidth
                                     label="Account ID *"
                                     type="number"
-                                    value={getNextAccountId()}
+                                    value={getAccountId()}
                                     onChange={(e) => handleInputChange('AccountId', parseInt(e.target.value))}
                                     error={!!errors.AccountId}
                                     helperText={errors.AccountId}
@@ -1663,7 +1661,7 @@ const SubscriptionForm: React.FC = () => {
                                     const now = new Date();
                                     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
                                     setFormData(prev => {
-                                        const nextId = ((prev.subscriptionPlans?.length || 0) + 1).toString();
+                                        const nextId = ((prev.subscriptionPlans?.length || 0) + 1);
                                         const newPlan = {
                                             id: generateId(),
                                             SubscriptionId: nextId,
@@ -1866,6 +1864,7 @@ const SubscriptionForm: React.FC = () => {
                                     value={1}
                                     onChange={(e) => handleInputChange('SubscriptionMemberId', parseInt(e.target.value))}
                                     required
+                                    disabled
                                 />
                             </Box>
                             <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>

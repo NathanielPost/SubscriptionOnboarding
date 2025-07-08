@@ -1,16 +1,12 @@
 export interface AccessCode {
-    id: string;
+    id?: string;
     code: string;
-    name: string;
-    description: string;
     type: string;
 }
 
 export interface AssignedUnit {
-    id: string;
+    id?: string;
     unit: string;
-    name: string;
-    description: string;
 }
 
 export interface Vehicle {
