@@ -149,9 +149,10 @@ const SubscriptionForm: React.FC = () => {
 
     const duplicateAccount = (index: number) => {
         const accountToDuplicate = accounts[index];
+        const newId = changeAccountId() 
         const newAccount = {
-            ...accountToDuplicate,
-            AccountId: getAccountId(), // New ID
+            ...accountToDuplicate,            
+            AccountId: newId,
             AccountEmail: '', // Clear unique fields
             // Clear other unique identifiers
         };
@@ -699,10 +700,10 @@ const SubscriptionForm: React.FC = () => {
     };
 
     const addNewAccount = () => {
-        changeAccountId();
+        const newId = changeAccountId();
         const newAccount: Partial<SubscriptionData> = {
             RunId: 10,
-            AccountId: getAccountId(),
+            AccountId: newId,
             subscriptionPlans: [
                 {
                     SubscriptionId: 1,
@@ -1145,9 +1146,10 @@ const SubscriptionForm: React.FC = () => {
                         return idx !== -1 ? row[idx] : '';
                     };
                     const useBilling = (get('use account address as billing address? (y/n)') || '').toString().toUpperCase().startsWith('Y');
+                    const newId = changeAccountId();
                     return {
                         RunId: 10,
-                        AccountId: getAccountId(),
+                        AccountId: newId,
                         AccountFirstName: get('firstname') || '',
                         AccountLastName: get('lastname') || '',
                         AccountEmail: get('email') || '',
@@ -1538,7 +1540,7 @@ const SubscriptionForm: React.FC = () => {
                                     fullWidth
                                     label="Account ID *"
                                     type="number"
-                                    value={getAccountId()}
+                                    value={currentAccount.AccountId || ''}
                                     onChange={(e) => handleInputChange('AccountId', parseInt(e.target.value))}
                                     error={!!errors.AccountId}
                                     helperText={errors.AccountId}
