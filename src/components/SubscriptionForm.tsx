@@ -77,24 +77,28 @@ const SubscriptionForm: React.FC = () => {
         return currentId + 1;
     }
     const resetAccountIdCounter = () => {
-        const key = 'accountIdCounter';
-        localStorage.setItem(key, '1');
-        // Reset the form and assign a new Account ID
-        setFormData({
-            RunId: 10,
-            AccountId: getAccountId(),
-            accessCodes: [],
-            assignedUnits: [],
-            vehicles: []
-        });
-        setErrors({});
-        setCopyAccountToBilling(false);
-        setImportError(null);
-        setImportSuccess(null);
-        // Optionally scroll to top
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return 0;
-    }
+        const resetConfirm = window.confirm("Are you sure you want to reset the Account ID counter? ");
+        if (!resetConfirm) {
+            alert("Account ID counter reset cancelled.");
+            return;
+        } else {
+            const key = 'accountIdCounter';
+            localStorage.setItem(key, '1');
+            // Reset the form and assign a new Account ID
+            setFormData({
+                RunId: 10,
+                AccountId: getAccountId(),
+                accessCodes: [],
+                assignedUnits: [],
+                vehicles: []
+            });
+            setErrors({});
+            setCopyAccountToBilling(false);
+            setImportError(null);
+            setImportSuccess(null);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
     const [formData, setFormData] = useState<Partial<SubscriptionData>>({
         RunId: 10,
         AccountId: getAccountId(), // Use a function to get the next account ID
