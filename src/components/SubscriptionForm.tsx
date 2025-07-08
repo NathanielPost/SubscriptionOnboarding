@@ -5,12 +5,13 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
   Box, Button, Typography, TextField, Select, MenuItem, FormControl, InputLabel, FormHelperText, Paper,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Alert, SelectChangeEvent,
-  Autocomplete, Tooltip, Checkbox, FormControlLabel, Chip
+  Autocomplete, Tooltip, Checkbox, FormControlLabel, Chip, Accordion, AccordionSummary, AccordionDetails,
 } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import type { SubscriptionPlan } from '../types/subscription'; // Adjust the path as needed
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 
 // Theme creation
@@ -98,17 +99,17 @@ const SubscriptionForm: React.FC = () => {
                         SubscriptionEffectiveDate: new Date(now.getFullYear(), now.getMonth(), 1),
                         SubscriptionInvoiceTemplate: 'lAZ_STANDARD',
                         SubscriptionMembers: [{
+                            SubscriptionId: 1,
                             SubscriptionMemberId: 1,
                             SubscriptionMemberFirstName: '',
                             SubscriptionMemberLastName: '',
                             SubscriptionMemberEmail: '',
                             SubscriptionMemberPhone: '',
                             SubscriptionMemberRateplanName: '',
-                            
-                        }],
-                        accessCodes: [],
-                        assignedUnits: [],
-                        vehicles: []
+                            accessCodes: [],
+                            assignedUnits: [],
+                            vehicles: []
+                        }], 
                     }
                 ],
             }]);
@@ -131,19 +132,31 @@ const SubscriptionForm: React.FC = () => {
                 SubscriptionType: 'EVERGREEN',
                 SubscriptionEffectiveDate: new Date(),
                 SubscriptionInvoiceTemplate: 'lAZ_STANDARD',
-                SubscriptionMembers: [],
-                accessCodes: [],
-                assignedUnits: [],
-                vehicles: []
+                SubscriptionMembers: [
+                    {
+                        SubscriptionId: 1,
+                        SubscriptionMemberId: 1,
+                        SubscriptionMemberFirstName: '',
+                        SubscriptionMemberLastName: '',
+                        SubscriptionMemberEmail: '',
+                        SubscriptionMemberPhone: '',
+                        SubscriptionMemberRateplanName: '',
+                        accessCodes: [],
+                        assignedUnits: [],
+                        vehicles: []
+                    }
+                ],
+ 
             }
         ] 
     }]);
     const [activeAccountIndex, setActiveAccountIndex] = useState(0);
     const currentAccount = accounts[activeAccountIndex] || {};
     const plan = currentAccount.subscriptionPlans && currentAccount.subscriptionPlans.length > 0 ? currentAccount.subscriptionPlans[0] : undefined;
-    const accessCodes = plan?.accessCodes || [];
-    const assignedUnits = plan?.assignedUnits || [];
-    const vehicles = plan?.vehicles || [];
+    const member = plan?.SubscriptionMembers[0];
+    const accessCodes = member?.accessCodes || [];
+    const assignedUnits = member?.assignedUnits || [];
+    const vehicles = member?.vehicles || [];
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [copyAccountToBilling, setCopyAccountToBilling] = useState(false);
 
@@ -170,34 +183,6 @@ const SubscriptionForm: React.FC = () => {
         }
     };
 
-    // --- TOP OF FORM: Data Template Download & Import UI ---
-    const [importError, setImportError] = useState<string | null>(null);
-    const [importSuccess, setImportSuccess] = useState<string | null>(null);
-
-    // Helper functions for dynamic arrays
-    const generateId = () => Math.random().toString(36).substr(2, 9);
-
-    const addAccessCode = () => {
-        if ((plan?.accessCodes || []).length >= 3) return;
-        const newAccessCode: AccessCode = {
-            id: generateId(),
-            code: '',
-            type: ''
-        };
-        setAccounts(prev => prev.map((account, idx) => 
-            idx === activeAccountIndex
-                ? {
-                    ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((p, planIdx) =>
-                        planIdx === 0
-                            ? { ...p, accessCodes: [...(p.accessCodes || []), newAccessCode] }
-                            : p
-                    )
-                }
-                : account
-        ));
-    };
-
     const removeMember = (id: string) => {
         setAccounts(prev => prev.map((account, idx) => 
             idx === activeAccountIndex
@@ -213,19 +198,50 @@ const SubscriptionForm: React.FC = () => {
         ));
     };
 
-    const removeAccessCode = (id: string) => {
-        setAccounts(prev => prev.map((account, idx) => 
+    // --- TOP OF FORM: Data Template Download & Import UI ---
+    const [importError, setImportError] = useState<string | null>(null);
+    const [importSuccess, setImportSuccess] = useState<string | null>(null);
+
+    const addAccessCode = (planId: number, memberId: number, code: AccessCode) => {
+    
+        setAccounts(prev => prev.map((account, idx) =>
             idx === activeAccountIndex
                 ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((p, planIdx) =>
-                        planIdx === 0
-                            ? { ...p, accessCodes: (p.accessCodes || []).filter(item => item.id !== id) }
-                            : p
-                    )
-                }
-                : account
-        ));
+                    subscriptionPlans: account.subscriptionPlans.map(plan =>
+                        plan.SubscriptionId === planId
+                        ? {
+                            ...plan,
+                            SubscriptionMembers: plan.SubscriptionMembers.map(member =>
+                                member.SubscriptionMemberId === memberId
+                                ? { ...member, accessCodes: [...member.accessCodes, code] }
+                                : member
+                            )
+                        }
+                    : plan
+                )
+            }
+        : account
+    ));
+    };
+
+    const removeAccessCode = (id: string) => {
+        setAccounts(prev =>
+            prev.map((account, idx) =>
+                idx === activeAccountIndex
+                    ? {
+                        ...account,
+                        subscriptionPlans: (account.subscriptionPlans || []).map(plan => ({
+                            ...plan,
+                            SubscriptionMembers: (plan.SubscriptionMembers || []).map(member => ({
+                                ...member,
+                                accessCodes: (member.accessCodes || []).filter(item => item.id !== id)
+                            }))
+                        }))
+                    }
+                    : account
+            )
+        );
         // Clear any errors for this row
         const newErrors = { ...errors };
         Object.keys(newErrors).forEach(key => {
@@ -236,59 +252,72 @@ const SubscriptionForm: React.FC = () => {
         setErrors(newErrors);
     };
 
-    const updateAccessCode = (id: string, field: keyof AccessCode, value: string) => {
-        setAccounts(prev => prev.map((account, idx) => 
+    const updateAccessCode = (planId: number, memberId: number, codeId: string, field: keyof AccessCode, value: string) => {
+        setAccounts(prev => prev.map((account, idx) =>
             idx === activeAccountIndex
                 ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((p, planIdx) =>
-                        planIdx === 0
+                    subscriptionPlans: account.subscriptionPlans.map(plan =>
+                        plan.SubscriptionId === planId
                             ? {
-                                ...p,
-                                accessCodes: (p.accessCodes || []).map(item =>
-                                    item.id === id ? { ...item, [field]: value } : item
+                                ...plan,
+                                SubscriptionMembers: plan.SubscriptionMembers.map(member =>
+                                    member.SubscriptionMemberId === memberId
+                                        ? {
+                                            ...member,
+                                            accessCodes: (member.accessCodes || []).map(code =>
+                                                code.id === codeId ? { ...code, [field]: value } : code
+                                            )
+                                        }
+                                        : member
                                 )
                             }
-                            : p
+                            : plan
                     )
                 }
                 : account
         ));
     };
 
-    const addAssignedUnit = () => {
-        if ((plan?.assignedUnits || []).length >= 1) return;
-        const newUnit: AssignedUnit = {
-            id: generateId(),
-            unit: '',
-        };
-        setAccounts(prev => prev.map((account, idx) => 
+    const addAssignedUnit = (planId: number, memberId: number, code: AssignedUnit) => {
+        setAccounts(prev => prev.map((account, idx) =>
             idx === activeAccountIndex
                 ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((p, planIdx) =>
-                        planIdx === 0
-                            ? { ...p, assignedUnits: [...(p.assignedUnits || []), newUnit] }
-                            : p
-                    )
-                }
-                : account
-        ));
+                    subscriptionPlans: account.subscriptionPlans.map(plan =>
+                        plan.SubscriptionId === planId
+                        ? {
+                            ...plan,
+                            SubscriptionMembers: plan.SubscriptionMembers.map(member =>
+                                member.SubscriptionMemberId === memberId
+                                ? { ...member, assignedUnits: [...member.assignedUnits, code] }
+                                : member
+                            )
+                        }
+                    : plan
+                )
+            }
+        : account
+    ));
     };
 
     const removeAssignedUnit = (id: string) => {
-        setAccounts(prev => prev.map((account, idx) => 
-            idx === activeAccountIndex
-                ? {
-                    ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((p, planIdx) =>
-                        planIdx === 0
-                            ? { ...p, assignedUnits: (p.assignedUnits || []).filter(item => item.id !== id) }
-                            : p
-                    )
-                }
-                : account
-        ));
+        setAccounts(prev =>
+            prev.map((account, idx) =>
+                idx === activeAccountIndex
+                    ? {
+                        ...account,
+                        subscriptionPlans: (account.subscriptionPlans || []).map(plan => ({
+                            ...plan,
+                            SubscriptionMembers: (plan.SubscriptionMembers || []).map(member => ({
+                                ...member,
+                                assignedUnits: (member.assignedUnits || []).filter(item => item.id !== id)
+                            }))
+                        }))
+                    }
+                    : account
+            )
+        );
         // Clear any errors for this row
         const newErrors = { ...errors };
         Object.keys(newErrors).forEach(key => {
@@ -299,64 +328,72 @@ const SubscriptionForm: React.FC = () => {
         setErrors(newErrors);
     };
 
-    const updateAssignedUnit = (id: string, field: keyof AssignedUnit, value: string) => {
-        setAccounts(prev => prev.map((account, idx) => 
+    const updateAssignedUnit = (planId: number, memberId: number, unitId: string, field: keyof AssignedUnit, value: string) => {
+        setAccounts(prev => prev.map((account, idx) =>
             idx === activeAccountIndex
                 ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((p, planIdx) =>
-                        planIdx === 0
+                    subscriptionPlans: account.subscriptionPlans.map(plan =>
+                        plan.SubscriptionId === planId
                             ? {
-                                ...p,
-                                assignedUnits: (p.assignedUnits || []).map(item =>
-                                    item.id === id ? { ...item, [field]: value } : item
+                                ...plan,
+                                SubscriptionMembers: plan.SubscriptionMembers.map(member =>
+                                    member.SubscriptionMemberId === memberId
+                                        ? {
+                                            ...member,
+                                            assignedUnits: (member.assignedUnits || []).map(unit =>
+                                                unit.id === unitId ? { ...unit, [field]: value } : unit
+                                            )
+                                        }
+                                        : member
                                 )
                             }
-                            : p
+                            : plan
                     )
                 }
                 : account
         ));
     };
 
-    const addVehicle = () => {
-        if ((plan?.vehicles || []).length >= 3) return;
-        const newVehicle: Vehicle = {
-            id: generateId(),
-            name: '',
-            plateNumber: '',
-            make: '',
-            model: '',
-            color: '',
-            state: ''
-        };
-        setAccounts(prev => prev.map((account, idx) => 
+    const addVehicle = (planId: number, memberId: number, code: Vehicle) => {
+        setAccounts(prev => prev.map((account, idx) =>
             idx === activeAccountIndex
                 ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((p, planIdx) =>
-                        planIdx === 0
-                            ? { ...p, vehicles: [...(p.vehicles || []), newVehicle] }
-                            : p
-                    )
-                }
-                : account
-        ));
+                    subscriptionPlans: account.subscriptionPlans.map(plan =>
+                        plan.SubscriptionId === planId
+                        ? {
+                            ...plan,
+                            SubscriptionMembers: plan.SubscriptionMembers.map(member =>
+                                member.SubscriptionMemberId === memberId
+                                ? { ...member, vehicles: [...member.vehicles, code] }
+                                : member
+                            )
+                        }
+                    : plan
+                )
+            }
+        : account
+    ));
     };
 
     const removeVehicle = (id: string) => {
-        setAccounts(prev => prev.map((account, idx) => 
-            idx === activeAccountIndex
-                ? {
-                    ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((p, planIdx) =>
-                        planIdx === 0
-                            ? { ...p, vehicles: (p.vehicles || []).filter(item => item.id !== id) }
-                            : p
-                    )
-                }
-                : account
-        ));
+        setAccounts(prev =>
+            prev.map((account, idx) =>
+                idx === activeAccountIndex
+                    ? {
+                        ...account,
+                        subscriptionPlans: (account.subscriptionPlans || []).map(plan => ({
+                            ...plan,
+                            SubscriptionMembers: (plan.SubscriptionMembers || []).map(member => ({
+                                ...member,
+                                vehicles: (member.vehicles || []).filter(item => item.id !== id)
+                            }))
+                        }))
+                    }
+                    : account
+            )
+        );
         // Clear any errors for this row
         const newErrors = { ...errors };
         Object.keys(newErrors).forEach(key => {
@@ -367,20 +404,27 @@ const SubscriptionForm: React.FC = () => {
         setErrors(newErrors);
     };
 
-    const updateVehicle = (id: string, field: keyof Vehicle, value: string) => {
-        setAccounts(prev => prev.map((account, idx) => 
+    const updateVehicle = (planId: number, memberId: number, vehicleId: string, field: keyof Vehicle, value: string) => {
+        setAccounts(prev => prev.map((account, idx) =>
             idx === activeAccountIndex
                 ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((p, planIdx) =>
-                        planIdx === 0
+                    subscriptionPlans: account.subscriptionPlans.map(plan =>
+                        plan.SubscriptionId === planId
                             ? {
-                                ...p,
-                                vehicles: (p.vehicles || []).map(item =>
-                                    item.id === id ? { ...item, [field]: value } : item
+                                ...plan,
+                                SubscriptionMembers: plan.SubscriptionMembers.map(member =>
+                                    member.SubscriptionMemberId === memberId
+                                        ? {
+                                            ...member,
+                                            vehicles: (member.vehicles || []).map(vehicle =>
+                                                vehicle.id === vehicleId ? { ...vehicle, [field]: value } : vehicle
+                                            )
+                                        }
+                                        : member
                                 )
                             }
-                            : p
+                            : plan
                     )
                 }
                 : account
@@ -711,10 +755,21 @@ const SubscriptionForm: React.FC = () => {
                     SubscriptionType: 'EVERGREEN',
                     SubscriptionEffectiveDate: new Date(),
                     SubscriptionInvoiceTemplate: 'lAZ_STANDARD',
-                    SubscriptionMembers: [],
-                    accessCodes: [],
-                    assignedUnits: [],
-                    vehicles: []
+                    SubscriptionMembers: [
+                    {
+                        SubscriptionId: 1,
+                        SubscriptionMemberId: 1,
+                        SubscriptionMemberFirstName: '',
+                        SubscriptionMemberLastName: '',
+                        SubscriptionMemberEmail: '',
+                        SubscriptionMemberPhone: '',
+                        SubscriptionMemberRateplanName: '',
+                        accessCodes: [],
+                        assignedUnits: [],
+                        vehicles: []
+                    }
+                    ],
+
                 }
             ],
 
@@ -774,8 +829,12 @@ const SubscriptionForm: React.FC = () => {
             legacyData['AccountName'] = `${data.AccountFirstName || ''} ${data.AccountLastName || ''}`.trim();
 
             // Convert access codes array to legacy fields
-            if (data.subscriptionPlans?.[0]?.accessCodes && data.subscriptionPlans[0].accessCodes.length > 0) {
-                data.subscriptionPlans[0].accessCodes.forEach((accessCode, index) => {
+            const firstPlan = data.subscriptionPlans?.[0];
+            const firstMember = firstPlan?.SubscriptionMembers?.[0];
+
+            // Convert access codes array to legacy fields
+            if (firstMember?.accessCodes && firstMember.accessCodes.length > 0) {
+                firstMember.accessCodes.forEach((accessCode: AccessCode, index: number) => {
                     if (index < 3) {
                         legacyData[`SubscriptionAccessCode${index + 1}`] = accessCode.code;
                         legacyData[`SubscriptionAccessCodeType${index + 1}`] = accessCode.type;
@@ -784,8 +843,8 @@ const SubscriptionForm: React.FC = () => {
             }
 
             // Convert assigned units array to legacy fields
-            if (data.subscriptionPlans?.[0]?.assignedUnits && data.subscriptionPlans[0].assignedUnits.length > 0) {
-                data.subscriptionPlans[0].assignedUnits.forEach((unit, index) => {
+            if (firstMember?.assignedUnits && firstMember.assignedUnits.length > 0) {
+                firstMember.assignedUnits.forEach((unit: AssignedUnit, index: number) => {
                     if (index < 3) {
                         legacyData[`SubscriptionMemberAssignedUnit${index + 1}`] = unit.unit;
                     }
@@ -793,8 +852,8 @@ const SubscriptionForm: React.FC = () => {
             }
 
             // Convert vehicles array to legacy fields
-            if (data.subscriptionPlans?.[0]?.vehicles && data.subscriptionPlans[0].vehicles.length > 0) {
-                data.subscriptionPlans[0].vehicles.forEach((vehicle, index) => {
+            if (firstMember?.vehicles && firstMember.vehicles.length > 0) {
+                firstMember.vehicles.forEach((vehicle: Vehicle, index: number) => {
                     if (index < 3) {
                         legacyData[`SubscriptionMemberVehicle${index + 1}Name`] = vehicle.name;
                         legacyData[`SubscriptionMemberVehicle${index + 1}PlateNumber`] = vehicle.plateNumber;
@@ -1027,15 +1086,14 @@ const SubscriptionForm: React.FC = () => {
                     SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
                     SubscriptionMembers: [
                         {
+                            SubscriptionId: 1,
                             SubscriptionMemberId: 1,
                             SubscriptionMemberFirstName: 'Jane',
                             SubscriptionMemberLastName: 'Smith',
                             SubscriptionMemberEmail: 'jane.smith@example.com',
                             SubscriptionMemberPhone: '(555)555-0123',
-                            SubscriptionMemberRateplanName: 'Standard Monthly Plan'
-                        }
-                    ],
-                    accessCodes: [
+                            SubscriptionMemberRateplanName: 'Standard Monthly Plan',
+                            accessCodes: [
                         {
                             id: '1',
                             code: 'ABC123',
@@ -1058,6 +1116,9 @@ const SubscriptionForm: React.FC = () => {
                             state: 'NY'
                         }
                     ]
+                        }
+                    ],
+                    
 
                 }
             ],
@@ -1280,31 +1341,39 @@ const SubscriptionForm: React.FC = () => {
     const addMember = () => {
         // Add member to the first subscription plan (if exists)
         if ((currentAccount.subscriptionPlans && currentAccount.subscriptionPlans[0]?.SubscriptionMembers || []).length >= 3) return;
+        // Find the highest existing SubscriptionMemberId and increment
+        const members = currentAccount.subscriptionPlans?.[0]?.SubscriptionMembers || [];
+        const maxId = members.reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
+        const planId = currentAccount.subscriptionPlans?.[0]?.SubscriptionId || 1;
         const newMember = {
-            SubscriptionMemberId: 1,
+            SubscriptionId: planId,
+            SubscriptionMemberId: maxId + 1,
             SubscriptionMemberFirstName: '',
             SubscriptionMemberLastName: '',
             SubscriptionMemberEmail: '',
             SubscriptionMemberPhone: '',
-            SubscriptionMemberRateplanName: ''
+            SubscriptionMemberRateplanName: '',
+            accessCodes: [],
+            assignedUnits: [],
+            vehicles: []
         };
         setAccounts(prev => prev.map((account, idx) => 
             idx === activeAccountIndex
                 ? {
                     ...account,
                     subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                        planIdx === 0
-                            ? {
-                                ...plan,
-                                SubscriptionMembers: [
-                                    ...(plan.SubscriptionMembers || []),
-                                    newMember
-                                ]
-                            }
-                            : plan
-                    )
+                    planIdx === 0
+                        ? {
+                            ...plan,
+                            SubscriptionMembers: [
+                                ...(plan.SubscriptionMembers || []),
+                                newMember
+                            ]
+                        }
+                        : plan
+                     )
                 }
-                : account
+            : account
         ));
     };
 
@@ -1904,16 +1973,17 @@ const SubscriptionForm: React.FC = () => {
                                             SubscriptionEffectiveDate: firstOfMonth,
                                             SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
                                             SubscriptionMembers: [{
+                                                    SubscriptionId: currentAccount.subscriptionPlans?.[0]?.SubscriptionId || 1,
                                                     SubscriptionMemberId: 1,
                                                     SubscriptionMemberFirstName: currentAccount.AccountFirstName || '',
                                                     SubscriptionMemberLastName: currentAccount.AccountLastName || '',
                                                     SubscriptionMemberEmail: currentAccount.AccountEmail || '',
                                                     SubscriptionMemberPhone: currentAccount.AccountPhone || '',
-                                                    SubscriptionMemberRateplanName: ''
-                                            }],
-                                            accessCodes: [],
-                                            assignedUnits: [],
-                                            vehicles: []
+                                                    SubscriptionMemberRateplanName: '',
+                                                    accessCodes: [],
+                                                    assignedUnits: [],
+                                                    vehicles: []
+                                            }]
                                         }
                                         return {
                                             ...account,
@@ -2111,554 +2181,363 @@ const SubscriptionForm: React.FC = () => {
                                 </TableBody>
                             </Table>
                         </TableContainer>
-                         <Box sx={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                                <Typography variant="h6" sx={{ color: '#007dba' }}>
-                                    Member Information
-                                </Typography>
-                            <Button
-                                variant="contained"
-                                startIcon={<AddIcon />}
-                                onClick={addMember}
-                                sx={{
-                                    backgroundColor: '#007dba',
-                                    '&:hover': { backgroundColor: '#005a94' },
-                                    borderRadius: '8px',
-                                    textTransform: 'none',
-                                    fontWeight: 600,
-                                    fontSize: '0.75rem',
-                                    px: 2,
-                                    py: 1,
-                                    mt: 2
-                                }}
-                            >
-                                Add Member
-                            </Button>
-                            </Box>
-                            {(currentAccount.subscriptionPlans && currentAccount.subscriptionPlans[0]?.SubscriptionMembers?.length > 0) && (
-                                <TableContainer component={Paper} sx={{ mb: 2 }}>
-                                    <Table size="small">
-                                        <TableHead>
-                                            <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                                                <TableCell width="30px" align="center"></TableCell>
-                                                <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Member ID</TableCell>
-                                                <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>First Name</TableCell>
-                                                <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Last Name</TableCell>
-                                                <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Email</TableCell>
-                                                <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Phone</TableCell>
-                                                <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Rate Plan Name</TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {(currentAccount.subscriptionPlans[0]?.SubscriptionMembers || []).map((member, idx) => (
-                                                <TableRow key={member.SubscriptionMemberId || idx}>
-                                                    <TableCell align="center">
-                                                        <TableCell align="center">
-                                                                <IconButton
-                                                                    onClick={() => removeMember(String(member.SubscriptionMemberId))}
-                                                                    size="small"
-                                                                    sx={{ color: '#B20838' }}
-                                                                >
-                                                                    <DeleteIcon fontSize="small" />
-                                                                </IconButton>
-                                                            </TableCell>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TextField
-                                                            fullWidth
-                                                            size="small"
-                                                            type="number"
-                                                            value={member.SubscriptionMemberId || ''}
-                                                            disabled
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TextField
-                                                            fullWidth
-                                                            size="small"
-                                                            value={member.SubscriptionMemberFirstName || ''}
-                                                            onChange={e => {
-                                                                const value = e.target.value;
-                                                                setAccounts(prev => prev.map((account, accountIdx) => 
-                                                                    accountIdx === activeAccountIndex
-                                                                        ? {
-                                                                            ...account,
-                                                                            subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                                                                                planIdx === 0
-                                                                                    ? {
-                                                                                        ...plan,
-                                                                                        SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
-                                                                                            mIdx === idx
-                                                                                                ? { ...m, SubscriptionMemberFirstName: value }
-                                                                                                : m
-                                                                                        )
-                                                                                    }
-                                                                                    : plan
-                                                                            )
-                                                                        }
-                                                                        : account
-                                                                ));
-                                                            }}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TextField
-                                                            fullWidth
-                                                            size="small"
-                                                            value={member.SubscriptionMemberLastName || ''}
-                                                            onChange={e => {
-                                                                const value = e.target.value;
-                                                                setAccounts(prev => prev.map((account, accountIdx) => 
-                                                                    accountIdx === activeAccountIndex
-                                                                        ? {
-                                                                            ...account,
-                                                                            subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                                                                                planIdx === 0
-                                                                                    ? {
-                                                                                        ...plan,
-                                                                                        SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
-                                                                                            mIdx === idx
-                                                                                                ? { ...m, SubscriptionMemberLastName: value }
-                                                                                                : m
-                                                                                        )
-                                                                                    }
-                                                                                    : plan
-                                                                            )
-                                                                        }
-                                                                        : account
-                                                                ));
-                                                            }}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TextField
-                                                            fullWidth
-                                                            size="small"
-                                                            value={member.SubscriptionMemberEmail || ''}
-                                                            onChange={e => {
-                                                                const value = e.target.value;
-                                                                setAccounts(prev => prev.map((account, accountIdx) => 
-                                                                    accountIdx === activeAccountIndex
-                                                                        ? {
-                                                                            ...account,
-                                                                            subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                                                                                planIdx === 0
-                                                                                    ? {
-                                                                                        ...plan,
-                                                                                        SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
-                                                                                            mIdx === idx
-                                                                                                ? { ...m, SubscriptionMemberEmail: value }
-                                                                                                : m
-                                                                                        )
-                                                                                    }
-                                                                                    : plan
-                                                                            )
-                                                                        }
-                                                                        : account
-                                                                ));
-                                                            }}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TextField
-                                                            fullWidth
-                                                            size="small"
-                                                            value={member.SubscriptionMemberPhone || ''}
-                                                            onChange={e => {
-                                                                const value = e.target.value;
-                                                                setAccounts(prev => prev.map((account, accountIdx) => 
-                                                                    accountIdx === activeAccountIndex
-                                                                        ? {
-                                                                            ...account,
-                                                                            subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                                                                                planIdx === 0
-                                                                                    ? {
-                                                                                        ...plan,
-                                                                                        SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
-                                                                                            mIdx === idx
-                                                                                                ? { ...m, SubscriptionMemberPhone: value }
-                                                                                                : m
-                                                                                        )
-                                                                                    }
-                                                                                    : plan
-                                                                            )
-                                                                        }
-                                                                        : account
-                                                                ));
-                                                            }}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TextField
-                                                            fullWidth
-                                                            size="small"
-                                                            value={member.SubscriptionMemberRateplanName || ''}
-                                                            onChange={e => {
-                                                                const value = e.target.value;
-                                                                setAccounts(prev => prev.map((account, accountIdx) => 
-                                                                    accountIdx === activeAccountIndex
-                                                                        ? {
-                                                                            ...account,
-                                                                            subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                                                                                planIdx === 0
-                                                                                    ? {
-                                                                                        ...plan,
-                                                                                        SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
-                                                                                            mIdx === idx
-                                                                                                ? { ...m, SubscriptionMemberRateplanName: value }
-                                                                                                : m
-                                                                                        )
-                                                                                    }
-                                                                                    : plan
-                                                                            )
-                                                                        }
-                                                                        : account
-                                                                ));
-                                                            }}
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            )}
-                            </Box>
-                            {/* Access Codes and Assigned Units - Side by Side */}
-                            <Box sx={{ display: 'flex', gap: 3, width: '100%' }}>
-                                {/* Access Codes Table */}
-                                <Box sx={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                                        <Typography variant="h6" sx={{ color: '#007dba' }}>
-                                            Access Codes
-                                        </Typography>
-                                        <Button
-                                            variant="contained"
-                                            startIcon={<AddIcon />}
-                                            onClick={addAccessCode}
-                                            sx={{
-                                                backgroundColor: '#007dba',
-                                                '&:hover': { backgroundColor: '#005a94' },
-                                                borderRadius: '8px',
-                                                textTransform: 'none',
-                                                fontWeight: 600,
-                                                fontSize: '0.75rem',
-                                                px: 2,
-                                                py: 1,
-                                                mt: 2
-                                            }}
-                                            disabled={(accessCodes || []).length >= 3}
-                                        >
-                                            Add Code
-                                        </Button>
-                                    </Box>
-                                    {(accessCodes || []).length > 0 && (
-                                        <TableContainer component={Paper} sx={{ mb: 2 }}>
-                                            <Table size="small">
-                                                <TableHead>
-                                                    <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                                                        <TableCell width="30px" align="center"></TableCell>
-                                                        <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Code</TableCell>
-                                                        <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Type</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {(accessCodes || []).map((accessCode) => (
-                                                        <TableRow key={accessCode.id}>
-                                                            <TableCell align="center">
-                                                                <IconButton
-                                                                    onClick={() => removeAccessCode(accessCode.id)}
-                                                                    size="small"
-                                                                    sx={{ color: '#B20838' }}
-                                                                >
-                                                                    <DeleteIcon fontSize="small" />
-                                                                </IconButton>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    fullWidth
-                                                                    size="small"
-                                                                    value={accessCode.code}
-                                                                    onChange={(e) => updateAccessCode(accessCode.id, 'code', e.target.value)}
-                                                                    placeholder="Enter code"
-                                                                    variant="outlined"
-                                                                    sx={{ minWidth: 100 }}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <FormControl fullWidth size="small" sx={{ minWidth: 100 }}>
-                                                                    <Select
-                                                                        value={accessCode.type}
-                                                                        onChange={(e: SelectChangeEvent) => updateAccessCode(accessCode.id, 'type', e.target.value)}
-                                                                        displayEmpty
-                                                                    >
-                                                                        <MenuItem value="">
-                                                                            <em>Type</em>
-                                                                        </MenuItem>
-                                                                        {accessCodeTypes.map((type) => (
-                                                                            <MenuItem key={type} value={type}>{type}</MenuItem>
-                                                                        ))}
-                                                                    </Select>
-                                                                </FormControl>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </TableContainer>
-                                    )}
-                                    {(accessCodes || []).length === 0 && (
-                                        <Box sx={{
-                                            textAlign: 'center',
-                                            py: 3,
-                                            backgroundColor: '#f8f9fa',
-                                            borderRadius: 2,
-                                            border: '2px dashed #dee2e6'
-                                        }}>
-                                            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                                                No access codes added yet. Click "Add Code" to get started.
-                                            </Typography>
-                                        </Box>
-                                    )}
-                                </Box>
 
-                                {/* Assigned Units Table */}
-                                <Box sx={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                                        <Typography variant="h6" sx={{ color: '#007dba' }}>
-                                            Assigned Units
-                                        </Typography>
-                                        <Button
-                                            variant="contained"
-                                            startIcon={<AddIcon />}
-                                            onClick={addAssignedUnit}
-                                            sx={{
-                                                backgroundColor: '#007dba',
-                                                '&:hover': { backgroundColor: '#005a94' },
-                                                borderRadius: '8px',
-                                                textTransform: 'none',
-                                                fontWeight: 600,
-                                                fontSize: '0.75rem',
-                                                px: 2,
-                                                py: 1,
-                                                mt: 2
-                                            }}
-                                            disabled={(assignedUnits || []).length >= 1}
-                                        >
-                                            Add Unit
-                                        </Button>
-                                    </Box>
-                                    {(assignedUnits || []).length > 0 && (
-                                        <TableContainer component={Paper} sx={{ mb: 2 }}>
-                                            <Table size="small">
-                                                <TableHead>
-                                                    <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                                                        <TableCell width="30px" align="center"></TableCell>
-                                                        <TableCell sx={{ fontWeight: 600, color: '#007dba', fontSize: '0.8rem' }}>Unit</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {(assignedUnits || []).map((unit) => (
-                                                        <TableRow key={unit.id}>
-                                                            <TableCell align="center">
-                                                                <IconButton
-                                                                    onClick={() => removeAssignedUnit(unit.id)}
-                                                                    size="small"
-                                                                    sx={{ color: '#B20838' }}
-                                                                >
-                                                                    <DeleteIcon fontSize="small" />
-                                                                </IconButton>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    fullWidth
-                                                                    size="small"
-                                                                    value={unit.unit}
-                                                                    onChange={(e) => updateAssignedUnit(unit.id, 'unit', e.target.value)}
-                                                                    placeholder="Unit"
-                                                                    variant="outlined"
-                                                                    sx={{ minWidth: 100 }}
-                                                                />
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </TableContainer>
-                                    )}
-                                    {(assignedUnits || []).length === 0 && (
-                                        <Box sx={{
-                                            textAlign: 'center',
-                                            py: 3,
-                                            backgroundColor: '#f8f9fa',
-                                            borderRadius: 2,
-                                            border: '2px dashed #dee2e6'
-                                        }}>
-                                            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                                                No assigned units added yet. Click "Add Unit" to get started.
-                                            </Typography>
-                                        </Box>
-                                    )}
-                                </Box>
-                            </Box>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                            <Box sx={{ flexBasis: { xs: '100%', md: 'auto' }, minWidth: 200, flex: 1 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                                    <Typography variant="h6" sx={{ color: '#007dba' }}>
-                                        Vehicles Registration
-                                    </Typography>
-                                    <Button
-                                        variant="contained"
-                                        startIcon={<AddIcon />}
-                                        onClick={addVehicle}
-                                        sx={{
-                                            backgroundColor: '#007dba',
-                                            '&:hover': { backgroundColor: '#005a94' },
-                                            borderRadius: '8px',
-                                            textTransform: 'none',
-                                            fontWeight: 600,
-                                            mt: 2
-                                        }}
-                                        disabled={(vehicles || []).length >= 3}
-                                    >
-                                        Add New Vehicle
-                                    </Button>
-                                </Box>
-                                {(vehicles || []).length > 0 && (
-                                    <TableContainer component={Paper} sx={{ mb: 2 }}>
-                                        <Table>
-                                            <TableHead>
-                                                <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                                                    <TableCell width="40px" align="center"></TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>Name</TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>Plate Number</TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>Make</TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>Model</TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>Color</TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, color: '#007dba' }}>State</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {(vehicles || []).map((vehicle) => (
-                                                    <TableRow key={vehicle.id}>
-                                                        <TableCell align="center">
-                                                            <IconButton
-                                                                onClick={() => removeVehicle(vehicle.id)}
-                                                                size="small"
-                                                                sx={{ color: '#B20838' }}
-                                                            >
-                                                                <DeleteIcon fontSize="small" />
-                                                            </IconButton>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <TextField
-                                                                fullWidth
-                                                                size="small"
-                                                                value={vehicle.name}
-                                                                onChange={(e) => updateVehicle(vehicle.id, 'name', e.target.value)}
-                                                                placeholder="Vehicle name"
-                                                                variant="outlined"
-                                                                sx={{ minWidth: 120 }}
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <TextField
-                                                                fullWidth
-                                                                size="small"
-                                                                value={vehicle.plateNumber}
-                                                                onChange={(e) => updateVehicle(vehicle.id, 'plateNumber', e.target.value)}
-                                                                placeholder="License plate"
-                                                                variant="outlined"
-                                                                sx={{ minWidth: 120 }}
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <TextField
-                                                                fullWidth
-                                                                size="small"
-                                                                value={vehicle.make}
-                                                                onChange={(e) => updateVehicle(vehicle.id, 'make', e.target.value)}
-                                                                placeholder="Make"
-                                                                variant="outlined"
-                                                                sx={{ minWidth: 100 }}
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <TextField
-                                                                fullWidth
-                                                                size="small"
-                                                                value={vehicle.model}
-                                                                onChange={(e) => updateVehicle(vehicle.id, 'model', e.target.value)}
-                                                                placeholder="Model"
-                                                                variant="outlined"
-                                                                sx={{ minWidth: 100 }}
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Autocomplete
-                                                                fullWidth
-                                                                size="small"
-                                                                freeSolo
-                                                                options={vehicleColors}
-                                                                value={vehicle.color}
-                                                                onChange={(_, newValue) => {
-                                                                    updateVehicle(vehicle.id, 'color', newValue || '');
-                                                                }}
-                                                                onInputChange={(_, newInputValue) => {
-                                                                    updateVehicle(vehicle.id, 'color', newInputValue);
-                                                                }}
-                                                                renderInput={(params) => (
-                                                                    <TextField
-                                                                        {...params}
-                                                                        placeholder="Color"
-                                                                        variant="outlined"
-                                                                        sx={{ minWidth: 100 }}
-                                                                    />
-                                                                )}
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Autocomplete
-                                                                fullWidth
-                                                                size="small"
-                                                                options={states}
-                                                                value={vehicle.state}
-                                                                onChange={(_, newValue) => {
-                                                                    updateVehicle(vehicle.id, 'state', newValue || '');
-                                                                }}
-                                                                renderInput={(params) => (
-                                                                    <TextField
-                                                                        {...params}
-                                                                        placeholder="State"
-                                                                        variant="outlined"
-                                                                        sx={{ minWidth: 80 }}
-                                                                    />
-                                                                )}
-                                                            />
-                                                        </TableCell>
-                                                        
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                )}
+<Box sx={{ mt: 4 }}>
+  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+    <Typography variant="h5" sx={{ color: '#B20838', fontWeight: 600 }}>
+      Members
+    </Typography>
+    <Button
+      variant="contained"
+      startIcon={<AddIcon />}
+      onClick={addMember}
+      sx={{
+        backgroundColor: '#007dba',
+        '&:hover': { backgroundColor: '#005a94' },
+        borderRadius: '8px',
+        textTransform: 'none',
+        fontWeight: 600,
+        fontSize: '0.95rem',
+        px: 2,
+        py: 1
+      }}
+    >
+      Add Member
+    </Button>
+  </Box>
 
-                                {(vehicles || []).length === 0 && (
-                                    <Box sx={{
-                                        textAlign: 'center',
-                                        py: 4,
-                                        backgroundColor: '#f8f9fa',
-                                        borderRadius: 2,
-                                        border: '2px dashed #dee2e6'
-                                    }}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            No vehicles added yet. Click "Add New Vehicle" to get started.
-                                        </Typography>
-                                    </Box>
-                                )}
-                            </Box>
-                        </Box>
+  {(currentAccount.subscriptionPlans?.[0]?.SubscriptionMembers || []).length === 0 && (
+    <Box sx={{
+      textAlign: 'center',
+      py: 3,
+      backgroundColor: '#f8f9fa',
+      borderRadius: 2,
+      border: '2px dashed #dee2e6'
+    }}>
+      <Typography variant="body2" color="text.secondary">
+        No members added yet. Click "Add Member" to get started.
+      </Typography>
+    </Box>
+  )}
+
+  {(currentAccount.subscriptionPlans?.[0]?.SubscriptionMembers || []).map((member, idx) => (
+    <Accordion key={member.SubscriptionMemberId || idx} sx={{ mb: 2 }}>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Typography sx={{ flex: 1 }}>
+        {member.SubscriptionMemberFirstName} {member.SubscriptionMemberLastName} (ID: {member.SubscriptionMemberId})
+        {(() => {
+            const plan = (currentAccount.subscriptionPlans || []).find(p => p.SubscriptionId === member.SubscriptionId);
+            return plan ? ` — Plan: ${plan.SubscriptionName || plan.SubscriptionId}` : '';
+        })()}
+        </Typography>
+        <IconButton
+          onClick={() => removeMember(String(member.SubscriptionMemberId))}
+          size="small"
+          sx={{ color: '#B20838' }}
+        >
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      </AccordionSummary>
+      <AccordionDetails>
+        {/* Member Info */}
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Member Information</Typography>
+        <Box sx={{ display: 'flex', gap: 2, mb: 2}}>
+          <TextField
+            label="First Name"
+            value={member.SubscriptionMemberFirstName}
+            onChange={e => {
+              const value = e.target.value;
+              setAccounts(prev => prev.map((account, accountIdx) =>
+                accountIdx === activeAccountIndex
+                  ? {
+                    ...account,
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
+                      planIdx === 0
+                        ? {
+                          ...plan,
+                          SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
+                            mIdx === idx ? { ...m, SubscriptionMemberFirstName: value } : m
+                          )
+                        }
+                        : plan
+                    )
+                  }
+                  : account
+              ));
+            }}
+            sx={{ minWidth: 150 }}
+          />
+          <TextField
+            label="Last Name"
+            value={member.SubscriptionMemberLastName}
+            onChange={e => {
+              const value = e.target.value;
+              setAccounts(prev => prev.map((account, accountIdx) =>
+                accountIdx === activeAccountIndex
+                  ? {
+                    ...account,
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
+                      planIdx === 0
+                        ? {
+                          ...plan,
+                          SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
+                            mIdx === idx ? { ...m, SubscriptionMemberLastName: value } : m
+                          )
+                        }
+                        : plan
+                    )
+                  }
+                  : account
+              ));
+            }}
+            sx={{ minWidth: 150 }}
+          />
+          <TextField
+            label="Email"
+            value={member.SubscriptionMemberEmail}
+            onChange={e => {
+              const value = e.target.value;
+              setAccounts(prev => prev.map((account, accountIdx) =>
+                accountIdx === activeAccountIndex
+                  ? {
+                    ...account,
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
+                      planIdx === 0
+                        ? {
+                          ...plan,
+                          SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
+                            mIdx === idx ? { ...m, SubscriptionMemberEmail: value } : m
+                          )
+                        }
+                        : plan
+                    )
+                  }
+                  : account
+              ));
+            }}
+            sx={{ minWidth: 200 }}
+          />
+          <TextField
+            label="Phone"
+            value={member.SubscriptionMemberPhone}
+            onChange={e => {
+              const value = e.target.value;
+              setAccounts(prev => prev.map((account, accountIdx) =>
+                accountIdx === activeAccountIndex
+                  ? {
+                    ...account,
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
+                      planIdx === 0
+                        ? {
+                          ...plan,
+                          SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
+                            mIdx === idx ? { ...m, SubscriptionMemberPhone: value } : m
+                          )
+                        }
+                        : plan
+                    )
+                  }
+                  : account
+              ));
+            }}
+            sx={{ minWidth: 150 }}
+          />
+          <TextField
+            label="Rate Plan Name"
+            value={member.SubscriptionMemberRateplanName}
+            onChange={e => {
+              const value = e.target.value;
+              setAccounts(prev => prev.map((account, accountIdx) =>
+                accountIdx === activeAccountIndex
+                  ? {
+                    ...account,
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
+                      planIdx === 0
+                        ? {
+                          ...plan,
+                          SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
+                            mIdx === idx ? { ...m, SubscriptionMemberRateplanName: value } : m
+                          )
+                        }
+                        : plan
+                    )
+                  }
+                  : account
+              ));
+            }}
+            sx={{ minWidth: 200 }}
+          />
+          <FormControl fullWidth >
+            <InputLabel id={`member-plan-select-label-${member.SubscriptionMemberId}`}>Subscription Plan</InputLabel>
+            <Select
+                labelId={`member-plan-select-label-${member.SubscriptionMemberId}`}
+                value={member.SubscriptionId}
+                label="Subscription Plan"
+                onChange={e => {
+                const newPlanId = Number(e.target.value);
+                setAccounts(prev => prev.map((account, accountIdx) =>
+                    accountIdx === activeAccountIndex
+                    ? {
+                        ...account,
+                        subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
+                            planIdx === 0
+                            ? {
+                                ...plan,
+                                SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
+                                    mIdx === idx ? { ...m, SubscriptionId: newPlanId } : m
+                                )
+                                }
+                            : plan
+                        )
+                        }
+                    : account
+                ));
+                }}
+            >
+                {(currentAccount.subscriptionPlans || []).map(plan => (
+                <MenuItem key={plan.SubscriptionId} value={plan.SubscriptionId}>
+                    {plan.SubscriptionId} {plan.SubscriptionName ? `- ${plan.SubscriptionName}` : ''}
+                </MenuItem>
+                ))}
+            </Select>
+            </FormControl>
+        </Box>
+
+        {/* Access Codes */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Access Codes</Typography>
+          {(member.accessCodes || []).map((code, codeIdx) => (
+            <Box key={code.id || codeIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <TextField
+                label="Code"
+                value={code.code}
+                onChange={e => updateAccessCode(plan.SubscriptionId, member.SubscriptionMemberId, code.id, 'code', e.target.value)}
+                sx={{ minWidth: 120 }}
+              />
+              <TextField
+                label="Type"
+                value={code.type}
+                onChange={e => updateAccessCode(plan.SubscriptionId, member.SubscriptionMemberId, code.id, 'type', e.target.value)}
+                sx={{ minWidth: 100 }}
+              />
+              <IconButton onClick={() => removeAccessCode(code.id)} size="small"><DeleteIcon /></IconButton>
+            </Box>
+          ))}
+          <Button
+            startIcon={<AddIcon />}
+            onClick={() => {
+              const newCode: AccessCode = {
+                id: (member.accessCodes.length + 1).toString(),
+                code: '',
+                type: ''
+              };
+              addAccessCode(plan.SubscriptionId, member.SubscriptionMemberId, newCode);
+            }}
+            disabled={member.accessCodes.length >= 3}
+            sx={{ mt: 1 }}
+          >
+            Add Access Code
+          </Button>
+        </Box>
+
+        {/* Assigned Units */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Assigned Units</Typography>
+          {(member.assignedUnits || []).map((unit, unitIdx) => (
+            <Box key={unit.id || unitIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <TextField
+                label="Unit"
+                value={unit.unit}
+                onChange={e => updateAssignedUnit(plan.SubscriptionId, member.SubscriptionMemberId, unit.id, 'unit', e.target.value)}
+                sx={{ minWidth: 120 }}
+              />
+              <IconButton onClick={() => removeAssignedUnit(unit.id)} size="small"><DeleteIcon /></IconButton>
+            </Box>
+          ))}
+          <Button
+            startIcon={<AddIcon />}
+            onClick={() => {
+              const newUnit: AssignedUnit = {
+                id: (member.assignedUnits.length + 1).toString(),
+                unit: ''
+              };
+              addAssignedUnit(plan.SubscriptionId, member.SubscriptionMemberId, newUnit);
+            }}
+            disabled={member.assignedUnits.length >= 1}
+            sx={{ mt: 1 }}
+          >
+            Add Assigned Unit
+          </Button>
+        </Box>
+
+        {/* Vehicles */}
+        <Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Vehicles</Typography>
+          {(member.vehicles || []).map((vehicle, vehicleIdx) => (
+            <Box key={vehicle.id || vehicleIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <TextField
+                label="Name"
+                value={vehicle.name}
+                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'name', e.target.value)}
+                sx={{ minWidth: 100 }}
+              />
+              <TextField
+                label="Plate"
+                value={vehicle.plateNumber}
+                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'plateNumber', e.target.value)}
+                sx={{ minWidth: 100 }}
+              />
+              <TextField
+                label="Make"
+                value={vehicle.make}
+                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'make', e.target.value)}
+                sx={{ minWidth: 100 }}
+              />
+              <TextField
+                label="Model"
+                value={vehicle.model}
+                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'model', e.target.value)}
+                sx={{ minWidth: 100 }}
+              />
+              <TextField
+                label="Color"
+                value={vehicle.color}
+                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'color', e.target.value)}
+                sx={{ minWidth: 80 }}
+              />
+              <TextField
+                label="State"
+                value={vehicle.state}
+                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'state', e.target.value)}
+                sx={{ minWidth: 80 }}
+              />
+              <IconButton onClick={() => removeVehicle(vehicle.id)} size="small"><DeleteIcon /></IconButton>
+            </Box>
+          ))}
+          <Button
+            startIcon={<AddIcon />}
+            onClick={() => {
+              const newVehicle: Vehicle = {
+                id: (member.vehicles.length + 1).toString(),
+                name: '',
+                plateNumber: '',
+                make: '',
+                model: '',
+                color: '',
+                state: ''
+              };
+              addVehicle(plan.SubscriptionId, member.SubscriptionMemberId, newVehicle);
+            }}
+            disabled={member.vehicles.length >= 3}
+            sx={{ mt: 1 }}
+          >
+            Add Vehicle
+          </Button>
+        </Box>
+      </AccordionDetails>
+    </Accordion>
+  ))}
+</Box>
                     </Paper>
 
                     {/* Submit Button */}
