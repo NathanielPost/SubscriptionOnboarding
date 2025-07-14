@@ -872,7 +872,6 @@ const SubscriptionForm: React.FC = () => {
         const testData: Partial<SubscriptionData> = {
             // Account Information
             RunId: 10,
-            AccountId: getAccountId(),
             AccountFirstName: 'John',
             AccountLastName: 'Doe',
             AccountEmail: 'john.doe@example.com',
