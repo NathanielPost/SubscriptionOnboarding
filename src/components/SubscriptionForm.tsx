@@ -693,8 +693,8 @@ const SubscriptionForm: React.FC = () => {
 
                     // Access Codes (up to 3)
                     (member.accessCodes || []).slice(0, 3).forEach((code, i) => {
-                        row[`SubscriptionAccessCode${i + 1}`] = code.code;
-                        row[`SubscriptionAccessCodeType${i + 1}`] = code.type;
+                        row[`SubscriptionAccessMemberCode${i + 1}`] = code.code;
+                        row[`SubscriptionAccessMemberCodeType${i + 1}`] = code.type;
                     });
 
                     // Assigned Units (up to 3)
