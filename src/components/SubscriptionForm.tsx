@@ -109,7 +109,8 @@ const SubscriptionForm: React.FC = () => {
     const plan = currentAccount.subscriptionPlans && currentAccount.subscriptionPlans.length > 0 ? currentAccount.subscriptionPlans[0] : undefined;
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [copyAccountToBilling, setCopyAccountToBilling] = useState(false);
-
+    
+    /*
     const duplicateAccount = (index: number) => {
         const accountToDuplicate = accounts[index];
         const newId = changeAccountId() 
@@ -122,6 +123,7 @@ const SubscriptionForm: React.FC = () => {
         
         setAccounts(prev => [...prev, newAccount]);
     };
+    */
 
 
     const deleteAccount = (index: number) => {
@@ -1262,6 +1264,7 @@ const SubscriptionForm: React.FC = () => {
                             >
                                 Add New Account
                             </Button>
+                            {/*
                             <Button
                                 variant="contained"
                                 startIcon={<AddIcon />}
@@ -1270,6 +1273,7 @@ const SubscriptionForm: React.FC = () => {
                             >
                                 Duplicate Current Account
                             </Button>
+                            */}
                         </Box>
                         
                         {/* Account Tabs */}
