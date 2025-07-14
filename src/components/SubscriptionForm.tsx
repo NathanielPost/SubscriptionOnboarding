@@ -87,7 +87,6 @@ const SubscriptionForm: React.FC = () => {
             const key = 'accountIdCounter';
             localStorage.setItem(key, '1');
             // Reset the form and assign a new Account ID
-            const now = new Date();
             setAccounts([{
                 RunId: 10,
                 AccountId: getAccountId(),
