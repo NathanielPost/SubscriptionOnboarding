@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { SubscriptionData, AccessCode, AssignedUnit, Vehicle } from '../types/subscription';
+import { SubscriptionData, AccessCode, AssignedUnit, Vehicle, memberInfo } from '../types/subscription';
 import * as XLSX from 'xlsx';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
   Box, Button, Typography, TextField, Select, MenuItem, FormControl, InputLabel, FormHelperText, Paper,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Alert, SelectChangeEvent,
-  Autocomplete, Tooltip, Checkbox, FormControlLabel, Chip, Accordion, AccordionSummary, AccordionDetails
+  Autocomplete, Tooltip, Checkbox, FormControlLabel, Chip, Accordion, AccordionSummary, AccordionDetails,
+  CircularProgress
 } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
 import AddIcon from '@mui/icons-material/Add';
@@ -46,21 +47,6 @@ const companyTheme = createTheme({
     },
   },
 });
-
-const ACCOUNT_TEMPLATE_HEADERS = [
-  'name',
-  'firstname',
-  'lastname',
-  'email',
-  'phone',
-  'address 1',
-  'address 2',
-  'city',
-  'state',
-  'country',
-  'zipcode',
-  'Use account address as billing address? (Y/N)'
-];
 
 const SubscriptionForm: React.FC = () => {
     useEffect(() => {
@@ -106,7 +92,6 @@ const SubscriptionForm: React.FC = () => {
     }]);
     const [activeAccountIndex, setActiveAccountIndex] = useState(0);
     const currentAccount = accounts[activeAccountIndex] || {};
-    const plan = currentAccount.subscriptionPlans && currentAccount.subscriptionPlans.length > 0 ? currentAccount.subscriptionPlans[0] : undefined;
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [copyAccountToBilling, setCopyAccountToBilling] = useState(false);
     
@@ -162,6 +147,8 @@ const SubscriptionForm: React.FC = () => {
     // --- TOP OF FORM: Data Template Download & Import UI ---
     const [importError, setImportError] = useState<string | null>(null);
     const [importSuccess, setImportSuccess] = useState<string | null>(null);
+    const [isParkerImporting, setIsParkerImporting] = useState(false);
+    const [isAccountImporting, setIsAccountImporting] = useState(false);
 
     const accessCodeLabel = "Access Codes (Credentials)";
     const assignedUnitLabel = "Assigned Units (Space Number)";
@@ -972,8 +959,205 @@ const SubscriptionForm: React.FC = () => {
         window.scrollTo({ top: 2098, behavior: 'smooth' });
     };
 
+    const PARKER_TEMPLATE_HEADERS = [
+        'first name', 'last name', 'email', 'phone', 'rate plan name',
+        'access code1', 'access code type1', 'access code2', 'access code type2', 'access code3', 'access code type3',
+        'assigned unit1',
+        'vehicle1name', 'vehicle1platenumber', 'vehicle1state', 'vehicle1color', 'vehicle1make', 'vehicle1model',
+        'vehicle2name', 'vehicle2platenumber', 'vehicle2state', 'vehicle2color', 'vehicle2make', 'vehicle2model',
+        'vehicle3name', 'vehicle3platenumber', 'vehicle3state', 'vehicle3color', 'vehicle3make', 'vehicle3model',
+    ];
+
     // Download Data Template
-    const handleDownloadTemplate = () => {
+    const handleParkerDownloadTemplate = () => {
+        const ws = XLSX.utils.aoa_to_sheet([PARKER_TEMPLATE_HEADERS]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'parkerTemplate');
+        XLSX.writeFile(wb, 'ParkerDataTemplate.xlsx');
+    };
+
+    // Import Account Data
+    const handleImportParkerData = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setImportError(null);
+        setImportSuccess(null);
+        setIsParkerImporting(true);
+        const file = e.target.files?.[0];
+        if (!file) {
+            setIsParkerImporting(false);
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const data = evt.target?.result;
+            if (!data) {
+                setIsParkerImporting(false);
+                return;
+            }
+            try {
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                if (rows.length < 2) throw new Error('No data found in file.');
+                const header = (rows[0] as any[]).map((h: any) => (h || '').toString().trim().toLowerCase());
+                console.log('Header:', header);
+                // Validate required columns
+                const requiredCols = [
+                    'first name', 'last name', 'email', 'rate plan name',
+                    'vehicle1name', 'vehicle1platenumber', 'vehicle1state', 'vehicle1color', 'vehicle1make', 'vehicle1model',
+                ];
+                for (const col of requiredCols) {
+                    if (!header.includes(col)) throw new Error(`Missing required column: ${col}`);
+                }
+
+                // Map each data row to a member object
+                const newMembers: Partial<memberInfo>[] = rows.slice(1).map((row: any[]) => {
+                    const get = (col: string) => {
+                        const idx = header.indexOf(col.toLowerCase());
+                        return idx !== -1 ? row[idx] : '';
+                    };
+                    return {
+                        SubscriptionId: 1,
+                        SubscriptionMemberId: 1,
+                        SubscriptionMemberFirstName: get('First Name') || '',
+                        SubscriptionMemberLastName: get('Last Name') || '',
+                        SubscriptionMemberEmail: get('Email') || '',
+                        SubscriptionMemberPhone: get('Phone') || '',
+                        SubscriptionMemberRateplanName: `${get('Rate Plan Name') || ''}` || ' ',
+                        accessCodes: [
+                            { id: '1', code: get('Access Code1') || '', type: get('Access Code Type1') || '' },
+                            { id: '2', code: get('Access Code2') || '', type: get('Access Code Type2') || '' },
+                            { id: '3', code: get('Access Code3') || '', type: get('Access Code Type3') || '' }
+                        ].filter(code => code.code || code.type),
+                        assignedUnits: [
+                            { id: '1', unit: get('Assigned Unit1') || '' }
+                        ].filter(unit => unit.unit),
+                        vehicles: [
+                            { id: '1', name: get('Vehicle1Name') || '', plateNumber: get('Vehicle1PlateNumber') || '', state: get('Vehicle1State') || '', color: get('Vehicle1Color') || '', make: get('Vehicle1Make') || '', model: get('Vehicle1Model') || '' },
+                            { id: '2', name: get('Vehicle2Name') || '', plateNumber: get('Vehicle2PlateNumber') || '', state: get('Vehicle2State') || '', color: get('Vehicle2Color') || '', make: get('Vehicle2Make') || '', model: get('Vehicle2Model') || '' },
+                            { id: '3', name: get('Vehicle3Name') || '', plateNumber: get('Vehicle3PlateNumber') || '', state: get('Vehicle3State') || '', color: get('Vehicle3Color') || '', make: get('Vehicle3Make') || '', model: get('Vehicle3Model') || '' }
+                        ].filter(vehicle => vehicle.name || vehicle.plateNumber || vehicle.state || vehicle.color || vehicle.make || vehicle.model)
+                    };
+                });
+                setAccounts(prev => prev.map((account, idx) => {
+                    if (idx !== activeAccountIndex) return account;
+
+                    // Group imported members by Rate Plan Name
+                    const groupedByRatePlan: { [ratePlan: string]: Partial<memberInfo>[] } = {};
+                    console.log('New Members:', newMembers);
+                    console.log('Grouped By Rate Plan:', groupedByRatePlan);
+                    newMembers.forEach((member) => {
+                        const ratePlan = member.SubscriptionMemberRateplanName || ' ';
+                        if (!groupedByRatePlan[ratePlan]) {
+                            groupedByRatePlan[ratePlan] = [];
+                        }
+                        groupedByRatePlan[ratePlan].push(member);
+                    });
+
+                    // Find the max SubscriptionId and SubscriptionMemberId to increment
+                    const existingPlans = account.subscriptionPlans || [];
+                    let maxPlanId = existingPlans.reduce((max, p) => Math.max(max, Number(p.SubscriptionId) || 0), 0);
+                    let maxMemberId = existingPlans.flatMap(plan => plan.SubscriptionMembers || []).reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
+
+                    // Process each rate plan group
+                    const updatedPlans = [...existingPlans];
+                    const newPlans: any[] = [];
+                    Object.entries(groupedByRatePlan).forEach(([ratePlan, members]) => {
+                        // Check if a plan with this name already exists
+                        const existingPlanIndex = updatedPlans.findIndex(p => p.SubscriptionName === ratePlan);
+                        if (existingPlanIndex !== -1) {
+                            // Add members to existing plan
+                            console.log('Adding members to existing plan:', ratePlan);
+                            console.log('Members:', members);  
+                            const existingPlan = updatedPlans[existingPlanIndex];
+                            const newMembers = members.map(member => {
+                                maxMemberId += 1;
+                                return {
+                                    SubscriptionId: existingPlan.SubscriptionId,
+                                    SubscriptionMemberId: maxMemberId,
+                                    SubscriptionMemberFirstName: member.SubscriptionMemberFirstName || '',
+                                    SubscriptionMemberLastName: member.SubscriptionMemberLastName || '',
+                                    SubscriptionMemberEmail: member.SubscriptionMemberEmail || '',
+                                    SubscriptionMemberPhone: member.SubscriptionMemberPhone || '',
+                                    SubscriptionMemberRateplanName: member.SubscriptionMemberRateplanName || '',
+                                    accessCodes: member.accessCodes || [],
+                                    assignedUnits: member.assignedUnits || [],
+                                    vehicles: member.vehicles || []
+                                };
+                            });
+                            
+                            updatedPlans[existingPlanIndex] = {
+                                ...existingPlan,
+                                SubscriptionMembers: [
+                                    ...(existingPlan.SubscriptionMembers || []),
+                                    ...newMembers
+                                ]
+                            };
+                        } else {
+                            // Create new plan
+                            maxPlanId += 1;
+                            const currentPlanId = maxPlanId;
+                            newPlans.push({
+                                SubscriptionId: currentPlanId,
+                                SubscriptionName: ratePlan,
+                                SubscriptionType: 'EVERGREEN',
+                                SubscriptionEffectiveDate: new Date(),
+                                SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
+                                SubscriptionMembers: members.map(member => {
+                                    maxMemberId += 1;
+                                    return {
+                                        SubscriptionId: currentPlanId,
+                                        SubscriptionMemberId: maxMemberId,
+                                        SubscriptionMemberFirstName: member.SubscriptionMemberFirstName || '',
+                                        SubscriptionMemberLastName: member.SubscriptionMemberLastName || '',
+                                        SubscriptionMemberEmail: member.SubscriptionMemberEmail || '',
+                                        SubscriptionMemberPhone: member.SubscriptionMemberPhone || '',
+                                        SubscriptionMemberRateplanName: member.SubscriptionMemberRateplanName || '',
+                                        accessCodes: member.accessCodes || [],
+                                        assignedUnits: member.assignedUnits || [],
+                                        vehicles: member.vehicles || []
+                                    };
+                                })
+                            });
+                        }
+                    });
+
+                    return {
+                        ...account,
+                        subscriptionPlans: [
+                            ...updatedPlans,
+                            ...newPlans
+                        ]
+                    };
+                }));
+                setImportSuccess('Parker data imported successfully!');
+                window.scrollTo({ top: 200, behavior: 'smooth' });
+            } catch (err: any) {
+                setImportError(err.message || 'Failed to import account data.');
+            } finally {
+                setIsParkerImporting(false);
+            }
+            e.target.value = '';
+        };
+        reader.readAsBinaryString(file);
+    };
+    const ACCOUNT_TEMPLATE_HEADERS = [
+    'name',
+    'firstname',
+    'lastname',
+    'email',
+    'phone',
+    'address 1',
+    'address 2',
+    'city',
+    'state',
+    'country',
+    'zipcode',
+    'Use account address as billing address? (Y/N)',
+    ];
+
+    // Download Data Template
+    const handleAccountDownloadTemplate = () => {
         const ws = XLSX.utils.aoa_to_sheet([ACCOUNT_TEMPLATE_HEADERS]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'AccountTemplate');
@@ -984,12 +1168,19 @@ const SubscriptionForm: React.FC = () => {
     const handleImportAccountData = (e: React.ChangeEvent<HTMLInputElement>) => {
         setImportError(null);
         setImportSuccess(null);
+        setIsAccountImporting(true);
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file) {
+            setIsAccountImporting(false);
+            return;
+        }
         const reader = new FileReader();
         reader.onload = (evt) => {
             const data = evt.target?.result;
-            if (!data) return;
+            if (!data) {
+                setIsAccountImporting(false);
+                return;
+            }
             try {
                 const workbook = XLSX.read(data, { type: 'binary' });
                 const sheetName = workbook.SheetNames[0];
@@ -1072,6 +1263,8 @@ const SubscriptionForm: React.FC = () => {
                 window.scrollTo({ top: 200, behavior: 'smooth' });
             } catch (err: any) {
                 setImportError(err.message || 'Failed to import account data.');
+            } finally {
+                setIsAccountImporting(false);
             }
             e.target.value = '';
         };
@@ -1264,16 +1457,6 @@ const SubscriptionForm: React.FC = () => {
                             >
                                 Add New Account
                             </Button>
-                            {/*
-                            <Button
-                                variant="contained"
-                                startIcon={<AddIcon />}
-                                onClick={() => duplicateAccount(activeAccountIndex)}
-                                sx={{ backgroundColor: 'secondary.main' }}
-                            >
-                                Duplicate Current Account
-                            </Button>
-                            */}
                         </Box>
                         
                         {/* Account Tabs */}
@@ -1297,19 +1480,21 @@ const SubscriptionForm: React.FC = () => {
                     {/* --- TOP OF FORM: Data Template Download & Import UI --- */}
                     <Paper sx={{ p: 4, my: 2 }}>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                            <Typography variant="h5" sx={{ color: '#B20838', fontWeight: 600, mr: 1 }}>
+                            <Typography variant="h5" sx={{ color: '#B20838', fontWeight: 600, mr: 1, mb: 1 }}>
                                 Data Template and Import
                             </Typography>
                             <Tooltip title="Download the data template, copy and paste your account information, save the file, then import the data">
                                 <InfoIcon sx={{ color: '#007dba', fontSize: 20 }} />
                             </Tooltip>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                             <Button
                                 variant="contained"
                                 color="primary"
-                                onClick={handleDownloadTemplate}
+                                onClick={handleAccountDownloadTemplate}
                                 sx={{ fontWeight: 600 }}
                             >
-                                Download Data Template
+                                Download Account Data Template
                             </Button>
                             <label htmlFor="import-account-data" style={{ marginBottom: 0 }}>
                                 <input
@@ -1318,14 +1503,47 @@ const SubscriptionForm: React.FC = () => {
                                     accept=".xlsx,.xls"
                                     style={{ display: 'none' }}
                                     onChange={handleImportAccountData}
+                                    disabled={isAccountImporting}
                                 />
                                 <Button
                                     variant="contained"
                                     color="secondary"
                                     component="span"
                                     sx={{ fontWeight: 600 }}
+                                    disabled={isAccountImporting}
+                                    startIcon={isAccountImporting ? <CircularProgress size={20} color="inherit" /> : undefined}
                                 >
-                                    Import Account Data
+                                    {isAccountImporting ? 'Importing...' : 'Import Account Data'}
+                                </Button>
+                            </label>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mt: 2 }}>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={handleParkerDownloadTemplate}
+                                sx={{ fontWeight: 600 }}
+                            >
+                                Download Parker Data Template
+                            </Button>
+                            <label htmlFor="import-parker-data" style={{ marginBottom: 0 }}>
+                                <input
+                                    id="import-parker-data"
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    style={{ display: 'none' }}
+                                    onChange={handleImportParkerData}
+                                    disabled={isParkerImporting}
+                                />
+                                <Button
+                                    variant="contained"
+                                    color="secondary"
+                                    component="span"
+                                    sx={{ fontWeight: 600 }}
+                                    disabled={isParkerImporting}
+                                    startIcon={isParkerImporting ? <CircularProgress size={20} color="inherit" /> : undefined}
+                                >
+                                    {isParkerImporting ? 'Importing...' : 'Import Parker Data'}
                                 </Button>
                             </label>
                             {importError && (
@@ -1925,7 +2143,7 @@ const SubscriptionForm: React.FC = () => {
     </Button>
   </Box>
 
-  {(currentAccount.subscriptionPlans?.[0]?.SubscriptionMembers || []).length === 0 && (
+  {(currentAccount.subscriptionPlans || []).flatMap(plan => plan.SubscriptionMembers || []).length === 0 && (
     <Box sx={{
       textAlign: 'center',
       py: 3,
@@ -1939,8 +2157,7 @@ const SubscriptionForm: React.FC = () => {
     </Box>
   )}
 
-  {(currentAccount.subscriptionPlans?.[0]?.SubscriptionMembers || []).map((member, idx) => (
-    <Accordion key={member.SubscriptionMemberId || idx} sx={{ mb: 2 }}>
+  {(currentAccount.subscriptionPlans || []).flatMap(plan => plan.SubscriptionMembers || []).map((member, idx) => (                    <Accordion key={`${member.SubscriptionId}-${member.SubscriptionMemberId}-${idx}`} sx={{ mb: 2 }}>
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Typography sx={{ flex: 1 }}>
         {member.SubscriptionMemberFirstName} {member.SubscriptionMemberLastName} (ID: {member.SubscriptionMemberId})
@@ -2063,7 +2280,10 @@ const SubscriptionForm: React.FC = () => {
           />
           <TextField
             label="Rate Plan Name"
-            value={member.SubscriptionMemberRateplanName}
+            value={(() => {
+              const memberPlan = (currentAccount.subscriptionPlans || []).find(p => p.SubscriptionId === member.SubscriptionId);
+              return memberPlan?.SubscriptionName || '';
+            })()}
             onChange={e => {
               const value = e.target.value;
               setAccounts(prev => prev.map((account, accountIdx) =>
@@ -2130,7 +2350,7 @@ const SubscriptionForm: React.FC = () => {
                 <TextField
                     label="Code"
                     value={code.code}
-                    onChange={e => updateAccessCode(plan.SubscriptionId, member.SubscriptionMemberId, code.id, 'code', e.target.value)}
+                    onChange={e => updateAccessCode(member.SubscriptionId, member.SubscriptionMemberId, code.id, 'code', e.target.value)}
                     sx={{ minWidth: 120 }}
                 />
                 <FormControl sx={{ minWidth: 100 }}>
@@ -2139,7 +2359,7 @@ const SubscriptionForm: React.FC = () => {
                     labelId={`access-code-type-label-${member.SubscriptionMemberId}-${codeIdx}`}
                     value={code.type}
                     label="Type"
-                    onChange={e => updateAccessCode(plan.SubscriptionId, member.SubscriptionMemberId, code.id, 'type', e.target.value)}
+                    onChange={e => updateAccessCode(member.SubscriptionId, member.SubscriptionMemberId, code.id, 'type', e.target.value)}
                     >
                     {accessCodeTypes.map(type => (
                         <MenuItem key={type} value={type}>{type}</MenuItem>
@@ -2157,7 +2377,7 @@ const SubscriptionForm: React.FC = () => {
                 code: '',
                 type: ''
               };
-              addAccessCode(plan.SubscriptionId, member.SubscriptionMemberId, newCode);
+              addAccessCode(member.SubscriptionId, member.SubscriptionMemberId, newCode);
             }}
             disabled={member.accessCodes.length >= 3}
             sx={{ mt: 1 }}
@@ -2174,7 +2394,7 @@ const SubscriptionForm: React.FC = () => {
               <TextField
                 label="Unit"
                 value={unit.unit}
-                onChange={e => updateAssignedUnit(plan.SubscriptionId, member.SubscriptionMemberId, unit.id, 'unit', e.target.value)}
+                onChange={e => updateAssignedUnit(member.SubscriptionId, member.SubscriptionMemberId, unit.id, 'unit', e.target.value)}
                 sx={{ minWidth: 120 }}
               />
               <IconButton onClick={() => removeAssignedUnit(unit.id)} size="small"><DeleteIcon /></IconButton>
@@ -2187,7 +2407,7 @@ const SubscriptionForm: React.FC = () => {
                 id: (member.assignedUnits.length + 1).toString(),
                 unit: ''
               };
-              addAssignedUnit(plan.SubscriptionId, member.SubscriptionMemberId, newUnit);
+              addAssignedUnit(member.SubscriptionId, member.SubscriptionMemberId, newUnit);
             }}
             disabled={member.assignedUnits.length >= 1}
             sx={{ mt: 1 }}
@@ -2204,37 +2424,37 @@ const SubscriptionForm: React.FC = () => {
               <TextField
                 label="Name"
                 value={vehicle.name}
-                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'name', e.target.value)}
+                onChange={e => updateVehicle(member.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'name', e.target.value)}
                 sx={{ minWidth: 100 }}
               />
               <TextField
                 label="Plate"
                 value={vehicle.plateNumber}
-                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'plateNumber', e.target.value)}
+                onChange={e => updateVehicle(member.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'plateNumber', e.target.value)}
                 sx={{ minWidth: 100 }}
               />
               <TextField
                 label="Make"
                 value={vehicle.make}
-                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'make', e.target.value)}
+                onChange={e => updateVehicle(member.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'make', e.target.value)}
                 sx={{ minWidth: 100 }}
               />
               <TextField
                 label="Model"
                 value={vehicle.model}
-                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'model', e.target.value)}
+                onChange={e => updateVehicle(member.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'model', e.target.value)}
                 sx={{ minWidth: 100 }}
               />
               <TextField
                 label="Color"
                 value={vehicle.color}
-                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'color', e.target.value)}
+                onChange={e => updateVehicle(member.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'color', e.target.value)}
                 sx={{ minWidth: 80 }}
               />
               <TextField
                 label="State"
                 value={vehicle.state}
-                onChange={e => updateVehicle(plan.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'state', e.target.value)}
+                onChange={e => updateVehicle(member.SubscriptionId, member.SubscriptionMemberId, vehicle.id, 'state', e.target.value)}
                 sx={{ minWidth: 80 }}
               />
               <IconButton onClick={() => removeVehicle(vehicle.id)} size="small"><DeleteIcon /></IconButton>
@@ -2252,7 +2472,7 @@ const SubscriptionForm: React.FC = () => {
                 color: '',
                 state: ''
               };
-              addVehicle(plan.SubscriptionId, member.SubscriptionMemberId, newVehicle);
+              addVehicle(member.SubscriptionId, member.SubscriptionMemberId, newVehicle);
             }}
             disabled={member.vehicles.length >= 3}
             sx={{ mt: 1 }}
