@@ -694,8 +694,8 @@ const SubscriptionForm: React.FC = () => {
 
                     // Access Codes (up to 3)
                     (member.accessCodes || []).slice(0, 3).forEach((code, i) => {
-                        row[`SubscriptionAccessMemberCode${i + 1}`] = code.code;
-                        row[`SubscriptionAccessMemberCodeType${i + 1}`] = code.type;
+                        row[`SubscriptionMemberAccessCode${i + 1}`] = code.code;
+                        row[`SubscriptionMemberAccessCodeType${i + 1}`] = code.type;
                     });
 
                     // Assigned Units (up to 3)
@@ -739,9 +739,9 @@ const SubscriptionForm: React.FC = () => {
             'SubscriptionId', 'SubscriptionName', 'SubscriptionType', 'SubscriptionEffectiveDate',
             'SubscriptionInvoiceTemplate', 'SubscriptionDefaultLanguage', 'SubscriptionTaxNumber1', 'SubscriptionTaxNumber2',
             'SubscriptionMemberId', 'SubscriptionMemberFirstName', 'SubscriptionMemberLastName', 'SubscriptionMemberEmail',
-            'SubscriptionMemberPhone', 'SubscriptionMemberRateplanName', 'SubscriptionAccessMemberCode1',
-            'SubscriptionAccessMemberCodeType1', 'SubscriptionAccessMemberCode2', 'SubscriptionAccessMemberCodeType2',
-            'SubscriptionAccessMemberCode3', 'SubscriptionAccessMemberCodeType3', 'SubscriptionMemberAssignedUnit1',
+            'SubscriptionMemberPhone', 'SubscriptionMemberRateplanName', 'SubscriptionMemberAccessCode1',
+            'SubscriptionMemberAccessCodeType1', 'SubscriptionMemberAccessCode2', 'SubscriptionMemberAccessCodeType2',
+            'SubscriptionMemberAccessCode3', 'SubscriptionMemberAccessCodeType3', 'SubscriptionMemberAssignedUnit1',
             'SubscriptionMemberAssignedUnit2', 'SubscriptionMemberAssignedUnit3', 'SubscriptionMemberVehicle1Name',
             'SubscriptionMemberVehicle1PlateNumber', 'SubscriptionMemberVehicle1State', 'SubscriptionMemberVehicle1Color',
             'SubscriptionMemberVehicle1Make', 'SubscriptionMemberVehicle1Model', 'SubscriptionMemberVehicle2Name',
