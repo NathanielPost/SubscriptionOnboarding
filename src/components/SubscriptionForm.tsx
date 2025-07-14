@@ -91,27 +91,6 @@ const SubscriptionForm: React.FC = () => {
             setAccounts([{
                 RunId: 10,
                 AccountId: getAccountId(),
-                subscriptionPlans: [
-                    {
-                        SubscriptionId: 1,
-                        SubscriptionName: '',
-                        SubscriptionType: 'EVERGREEN',
-                        SubscriptionEffectiveDate: new Date(now.getFullYear(), now.getMonth(), 1),
-                        SubscriptionInvoiceTemplate: 'lAZ_STANDARD',
-                        SubscriptionMembers: [{
-                            SubscriptionId: 1,
-                            SubscriptionMemberId: 1,
-                            SubscriptionMemberFirstName: '',
-                            SubscriptionMemberLastName: '',
-                            SubscriptionMemberEmail: '',
-                            SubscriptionMemberPhone: '',
-                            SubscriptionMemberRateplanName: '',
-                            accessCodes: [],
-                            assignedUnits: [],
-                            vehicles: []
-                        }], 
-                    }
-                ],
             }]);
             setActiveAccountIndex(0);
             setErrors({});
@@ -125,38 +104,10 @@ const SubscriptionForm: React.FC = () => {
     {
         RunId: 10,
         AccountId: getAccountId(), // Use a function to get the next account ID
-        subscriptionPlans: [
-            {
-                SubscriptionId: 1,
-                SubscriptionName: '',
-                SubscriptionType: 'EVERGREEN',
-                SubscriptionEffectiveDate: new Date(),
-                SubscriptionInvoiceTemplate: 'lAZ_STANDARD',
-                SubscriptionMembers: [
-                    {
-                        SubscriptionId: 1,
-                        SubscriptionMemberId: 1,
-                        SubscriptionMemberFirstName: '',
-                        SubscriptionMemberLastName: '',
-                        SubscriptionMemberEmail: '',
-                        SubscriptionMemberPhone: '',
-                        SubscriptionMemberRateplanName: '',
-                        accessCodes: [],
-                        assignedUnits: [],
-                        vehicles: []
-                    }
-                ],
- 
-            }
-        ] 
     }]);
     const [activeAccountIndex, setActiveAccountIndex] = useState(0);
     const currentAccount = accounts[activeAccountIndex] || {};
     const plan = currentAccount.subscriptionPlans && currentAccount.subscriptionPlans.length > 0 ? currentAccount.subscriptionPlans[0] : undefined;
-    // const member = plan?.SubscriptionMembers[0];
-    // const accessCodes = member?.accessCodes || [];
-    // const assignedUnits = member?.assignedUnits || [];
-    // const vehicles = member?.vehicles || [];
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [copyAccountToBilling, setCopyAccountToBilling] = useState(false);
 
@@ -188,20 +139,31 @@ const SubscriptionForm: React.FC = () => {
             idx === activeAccountIndex
                 ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((p, planIdx) =>
-                        planIdx === 0
-                            ? { ...p, SubscriptionMembers: (p.SubscriptionMembers || []).filter(item => String(item.SubscriptionMemberId) !== id) }
-                            : p
-                    )
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan) => ({
+                        ...plan,
+                        SubscriptionMembers: (plan.SubscriptionMembers || []).filter(member => String(member.SubscriptionMemberId) !== id)
+                    }))
                 }
                 : account
         ));
     };
+    const removePlan = (id: number) => {
+        setAccounts(prev => prev.map((account, idx) => 
+            idx === activeAccountIndex
+                ? {
+                    ...account,
+                    subscriptionPlans: (account.subscriptionPlans || []).filter((p: any) => p.SubscriptionId !== id)
+                }
+                : account
+        ));
+    }
 
     // --- TOP OF FORM: Data Template Download & Import UI ---
     const [importError, setImportError] = useState<string | null>(null);
     const [importSuccess, setImportSuccess] = useState<string | null>(null);
 
+    const accessCodeLabel = "Access Codes (Credentials)";
+    const assignedUnitLabel = "Assigned Units (Space Number)";
     const addAccessCode = (planId: number, memberId: number, code: AccessCode) => {
     
         setAccounts(prev => prev.map((account, idx) =>
@@ -450,6 +412,7 @@ const SubscriptionForm: React.FC = () => {
             // Validate each account
             const accountErrors = validateAccount(account, accountIndex);
             Object.assign(newErrors, accountErrors);
+            Object.assign(newErrors, validateSubscriptionPlans(account.subscriptionPlans || []));
             if (Object.keys(accountErrors).length > 0) {
                 isValid = false;
             }
@@ -473,8 +436,6 @@ const SubscriptionForm: React.FC = () => {
 
             case 'AccountFirstName':
             case 'AccountLastName':
-            case 'SubscriptionMemberFirstName':
-            case 'SubscriptionMemberLastName':
             case 'AccountBillToFirstName':
             case 'AccountBillToLastName':
                 if (!value || value.trim() === '') return `${field.replace(/([A-Z])/g, ' $1').trim()} is required`;
@@ -520,11 +481,12 @@ const SubscriptionForm: React.FC = () => {
                 break;
 
             case 'AccountPostalCode':
-                if (!value || value.trim() === '') return 'Postal Code is required';
-                const usZipRegex = /^\d{5}(-\d{4})?$/; // US ZIP: 12345 or 12345-6789
-                const canPostalRegex = /^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/; // Canadian: A1A 1A1 or A1A-1A1
-                if (!usZipRegex.test(value) && !canPostalRegex.test(value)) {
-                    return 'Must be valid postal code format (US: 12345 or 12345-6789, CA: A1A 1A1 or A1A-1A1)';
+                if (value && value.trim() !== '') {
+                    const usZipRegex = /^\d{5}(-\d{4})?$/; // US ZIP: 12345 or 12345-6789
+                    const canPostalRegex = /^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/; // Canadian: A1A 1A1 or A1A-1A1
+                    if (!usZipRegex.test(value) && !canPostalRegex.test(value)) {
+                        return 'Must be valid postal code format (US: 12345 or 12345-6789, CA: A1A 1A1 or A1A-1A1)';
+                    }
                 }
                 break;
 
@@ -551,134 +513,6 @@ const SubscriptionForm: React.FC = () => {
                 if (!validTypes.includes(value)) return 'Must be Corporate or Individual';
                 break;
 
-            case 'SubscriptionName':
-                if (!value || value.trim() === '') return 'Subscription Name is required';
-                if (value.length > 100) return 'Subscription Name must be 100 characters or less';
-                break;
-
-            case 'SubscriptionType':
-                if (!value || value.trim() === '') return 'Subscription Type is required';
-                const validSubTypes = ['TERMED', 'EVERGREEN'];
-                if (!validSubTypes.includes(value.toUpperCase())) return 'Must be TERMED or EVERGREEN';
-                break;
-
-            case 'SubscriptionEffectiveDate':
-                if (!value) return 'Effective Date is required';
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const selectedDate = new Date(value);
-                selectedDate.setHours(0, 0, 0, 0);
-                if (selectedDate < today) return 'Effective Date cannot be in the past';
-                break;
-
-            case 'SubscriptionInvoiceTemplate':
-                if (!value || value.trim() === '') return 'Invoice Template is required';
-                const validTemplates = ['LAZ_STANDARD', 'LAZ_STANDARD_MAIL', 'LAZ_SUMMARY', 'LAZ_SUMMARY_MAIL', 'IPC_STANDARD', 'IPC_STANDARD_FR', 'IPC_SUMMARY', 'IPC_SUMMARY_FR'];
-                if (!validTemplates.includes(value.toUpperCase())) return 'Must reference valid template';
-                break;
-
-            case 'SubscriptionMemberId':
-                if (!value || value <= 0) return 'Member ID is required and must be a positive number';
-                break;
-
-            case 'SubscriptionMemberRateplanName':
-                if (!value || value.trim() === '') return 'Member Rate Plan Name is required';
-                if (value.length > 100) return 'Rate Plan Name must be 100 characters or less';
-                break;
-
-            case 'SubscriptionMemberVehicle1PlateNumber':
-            case 'SubscriptionMemberVehicle2PlateNumber':
-            case 'SubscriptionMemberVehicle3PlateNumber':
-                if (value && value.trim() !== '') {
-                    if (value.length < 2 || value.length > 10) return 'Plate number must be 2-10 characters';
-                }
-                break;
-
-            // Parking-related validations
-            case 'SubscriptionMemberVehicle1Name':
-            case 'SubscriptionMemberVehicle2Name':
-            case 'SubscriptionMemberVehicle3Name':
-                if (value && value.trim() !== '') {
-                    if (value.length > 50) return 'Vehicle name must be 50 characters or less';
-                }
-                break;
-
-            case 'SubscriptionMemberVehicle1Make':
-            case 'SubscriptionMemberVehicle2Make':
-            case 'SubscriptionMemberVehicle3Make':
-                if (value && value.trim() !== '') {
-                    if (value.length < 2 || value.length > 30) return 'Vehicle make must be 2-30 characters';
-                }
-                break;
-
-            case 'SubscriptionMemberVehicle1Model':
-            case 'SubscriptionMemberVehicle2Model':
-            case 'SubscriptionMemberVehicle3Model':
-                if (value && value.trim() !== '') {
-                    if (value.length < 2 || value.length > 30) return 'Vehicle model must be 2-30 characters';
-                }
-                break;
-
-            case 'SubscriptionMemberVehicle1Color':
-            case 'SubscriptionMemberVehicle2Color':
-            case 'SubscriptionMemberVehicle3Color':
-                if (value && value.trim() !== '') {
-                    if (value.length < 2 || value.length > 20) return 'Vehicle color must be 2-20 characters';
-                    // Common colors validation
-                    const validColors = ['Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Silver', 'Gray', 'Grey', 'Brown', 'Orange', 'Purple', 'Pink', 'Gold', 'Beige', 'Tan', 'Maroon', 'Navy'];
-                    if (!validColors.some(color => color.toLowerCase() === value.toLowerCase())) {
-                        return 'Please enter a standard vehicle color';
-                    }
-                }
-                break;
-
-            // Access Code validations
-            case 'SubscriptionAccessCode1':
-            case 'SubscriptionAccessCode2':
-            case 'SubscriptionAccessCode3':
-                if (value && value.trim() !== '') {
-                    // Must be 4-12 characters, alphanumeric
-                    if (value.length < 4 || value.length > 12) return 'Access code must be 4-12 characters';
-                    if (!/^[A-Za-z0-9]+$/.test(value)) return 'Access code must be alphanumeric only';
-                }
-                break;
-
-            case 'SubscriptionAccessCodeType1':
-            case 'SubscriptionAccessCodeType2':
-            case 'SubscriptionAccessCodeType3':
-                if (value && value.trim() !== '') {
-                    const validCodeTypes = ['PERMIT', 'PROXCARD'];
-                    if (!validCodeTypes.includes(value.toUpperCase())) {
-                        return 'Must be PERMIT or PROXCARD';
-                    }
-                }
-                break;
-
-            // Assigned Unit validations
-            case 'SubscriptionMemberAssignedUnit1':
-            case 'SubscriptionMemberAssignedUnit2':
-            case 'SubscriptionMemberAssignedUnit3':
-                if (value && value.trim() !== '') {
-                    // Unit number validation - alphanumeric, 1-10 characters
-                    if (value.length < 1 || value.length > 10) return 'Unit number must be 1-10 characters';
-                    if (!/^[A-Za-z0-9]+$/.test(value)) return 'Unit number must be alphanumeric only';
-                }
-                break;
-
-            // Tax Number validations
-            case 'SubscriptionTaxNumber1':
-            case 'SubscriptionTaxNumber2':
-                if (value && value.trim() !== '') {
-                    // Tax ID format validation - can be EIN or SSN format
-                    const einRegex = /^\d{2}-\d{7}$/; // EIN format: XX-XXXXXXX
-                    const ssnRegex = /^\d{3}-\d{2}-\d{4}$/; // SSN format: XXX-XX-XXXX
-                    const simpleNumberRegex = /^\d{9,11}$/; // Simple 9-11 digit number
-                    
-                    if (!einRegex.test(value) && !ssnRegex.test(value) && !simpleNumberRegex.test(value)) {
-                        return 'Tax number must be in valid format (XX-XXXXXXX, XXX-XX-XXXX, or 9-11 digits)';
-                    }
-                }
-                break;
 
             // Language validation
             case 'SubscriptionDefaultLanguage':
@@ -696,39 +530,49 @@ const SubscriptionForm: React.FC = () => {
                 if (value && value.length > 100) return 'Address Line 2 must be 100 characters or less';
                 break;
 
-            // Enhanced name validations
-            case 'AccountBillToName':
-                if (!value || value.trim() === '') return 'Bill To Name is required';
-                if (value.length < 2) return 'Bill To Name must be at least 2 characters';
-                if (value.length > 100) return 'Bill To Name must be 100 characters or less';
-                break;
-
-            // State/Province validations for vehicles
-            case 'SubscriptionMemberVehicle1State':
-            case 'SubscriptionMemberVehicle2State':
-            case 'SubscriptionMemberVehicle3State':
-                if (value && value.trim() !== '') {
-                    const validStates = [
-                        'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-                        'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-                        'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-                        'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-                        'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
-                    ];
-                    const validProvinces = [
-                        'AB', 'BC', 'MB', 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'
-                    ];
-                    const validStatesProvinces = [...validStates, ...validProvinces];
-                    if (!validStatesProvinces.includes(value.toUpperCase())) {
-                        return 'Must be a valid US state or Canadian province abbreviation';
-                    }
-                }
-                break;
-
             default:
                 return '';
         }
         return '';
+    };
+
+    const validateSubscriptionPlans = (subscriptionPlans: SubscriptionPlan[]) => {
+        const errors: Record<string, string> = {};
+
+        subscriptionPlans.forEach((plan, planIdx) => {
+            // Plan-level required fields
+            if (!plan.SubscriptionName || plan.SubscriptionName.trim() === '') {
+                errors[`subscriptionPlans[${planIdx}].SubscriptionName`] = 'Subscription Name is required';
+            }
+            if (!plan.SubscriptionType || plan.SubscriptionType.trim() === '') {
+                errors[`subscriptionPlans[${planIdx}].SubscriptionType`] = 'Subscription Type is required';
+            }
+            if (!plan.SubscriptionEffectiveDate) {
+                errors[`subscriptionPlans[${planIdx}].SubscriptionEffectiveDate`] = 'Effective Date is required';
+            }
+            if (!plan.SubscriptionInvoiceTemplate || plan.SubscriptionInvoiceTemplate.trim() === '') {
+                errors[`subscriptionPlans[${planIdx}].SubscriptionInvoiceTemplate`] = 'Invoice Template is required';
+            }
+
+            // Validate each member in the plan
+            (plan.SubscriptionMembers || []).forEach((member, memberIdx) => {
+                if (!member.SubscriptionMemberFirstName || member.SubscriptionMemberFirstName.trim() === '') {
+                    errors[`subscriptionPlans[${planIdx}].SubscriptionMembers[${memberIdx}].SubscriptionMemberFirstName`] = 'First Name is required';
+                }
+                if (!member.SubscriptionMemberLastName || member.SubscriptionMemberLastName.trim() === '') {
+                    errors[`subscriptionPlans[${planIdx}].SubscriptionMembers[${memberIdx}].SubscriptionMemberLastName`] = 'Last Name is required';
+                }
+                if (!member.SubscriptionMemberRateplanName || member.SubscriptionMemberRateplanName.trim() === '') {
+                    errors[`subscriptionPlans[${planIdx}].SubscriptionMembers[${memberIdx}].SubscriptionMemberRateplanName`] = 'Rate Plan Name is required';
+                }
+                // Optionally validate email/phone if required
+                // if (!member.SubscriptionMemberEmail || member.SubscriptionMemberEmail.trim() === '') {
+                //     errors[`subscriptionPlans[${planIdx}].SubscriptionMembers[${memberIdx}].SubscriptionMemberEmail`] = 'Email is required';
+                // }
+            });
+        });
+
+        return errors;
     };
 
     const handleInputChange = (field: keyof SubscriptionData, value: any) => {
@@ -748,31 +592,6 @@ const SubscriptionForm: React.FC = () => {
         const newAccount: Partial<SubscriptionData> = {
             RunId: 10,
             AccountId: newId,
-            subscriptionPlans: [
-                {
-                    SubscriptionId: 1,
-                    SubscriptionName: '',
-                    SubscriptionType: 'EVERGREEN',
-                    SubscriptionEffectiveDate: new Date(),
-                    SubscriptionInvoiceTemplate: 'lAZ_STANDARD',
-                    SubscriptionMembers: [
-                    {
-                        SubscriptionId: 1,
-                        SubscriptionMemberId: 1,
-                        SubscriptionMemberFirstName: '',
-                        SubscriptionMemberLastName: '',
-                        SubscriptionMemberEmail: '',
-                        SubscriptionMemberPhone: '',
-                        SubscriptionMemberRateplanName: '',
-                        accessCodes: [],
-                        assignedUnits: [],
-                        vehicles: []
-                    }
-                    ],
-
-                }
-            ],
-
         };
         
         setAccounts(prev => [...prev, newAccount]);
@@ -786,7 +605,7 @@ const SubscriptionForm: React.FC = () => {
         // Required fields validation
         const requiredFields: (keyof SubscriptionData)[] = [
             'RunId', 'AccountId', 'AccountFirstName', 'AccountLastName', 'AccountEmail',
-            'AccountState', 'AccountPostalCode', 'AccountCountry', 'AccountType',
+            'AccountState', 'AccountCountry', 'AccountType',
             'AccountBillToName', 'AccountBillToFirstName', 'AccountBillToLastName', 
             'AccountBillToEmail', 'AccountBillToState', 'AccountBillToCountry',
             'SubscriptionId', 'SubscriptionName', 'SubscriptionType', 
@@ -963,6 +782,7 @@ const SubscriptionForm: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     currentAccount.RunId = 10;
+    console.log('Submitting form with current account:', currentAccount);
     if (validateAllAccounts() && validateForm()) {
         try {
 
@@ -1221,14 +1041,24 @@ const SubscriptionForm: React.FC = () => {
                         subscriptionPlans: [
                             {
                                 SubscriptionId: 1,
-                                SubscriptionName: '',
+                                SubscriptionName: `${get('firstname') || ''} ${get('lastname') || ''} 1` || ' ',
                                 SubscriptionType: 'EVERGREEN',
                                 SubscriptionEffectiveDate: new Date(),
                                 SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
-                                SubscriptionMembers: [],
-                                accessCodes: [],
-                                assignedUnits: [],
-                                vehicles: []
+                                SubscriptionMembers: [
+                                    {
+                                        SubscriptionId: 1,
+                                        SubscriptionMemberId: 1,
+                                        SubscriptionMemberFirstName: get('firstname') || '',
+                                        SubscriptionMemberLastName: get('lastname') || '',
+                                        SubscriptionMemberEmail: get('email') || '',
+                                        SubscriptionMemberPhone: get('phone') || '',
+                                        SubscriptionMemberRateplanName: `${get('firstname') || ''} ${get('lastname') || ''} 1` || ' ',
+                                        accessCodes: [],
+                                        assignedUnits: [],
+                                        vehicles: []
+                                    }
+                                ]
                             }
                         ]
                     };
@@ -1250,11 +1080,13 @@ const SubscriptionForm: React.FC = () => {
 
     const addMember = () => {
         // Add member to the first subscription plan (if exists)
-        // if ((currentAccount.subscriptionPlans && currentAccount.subscriptionPlans[0]?.SubscriptionMembers || []).length >= 10) return;
-        // Find the highest existing SubscriptionMemberId and increment
-        const members = currentAccount.subscriptionPlans?.[0]?.SubscriptionMembers || [];
-        const maxId = members.reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
-        const planId = currentAccount.subscriptionPlans?.[0]?.SubscriptionId || 1;
+        if (!currentAccount.subscriptionPlans || currentAccount.subscriptionPlans.length === 0) return;
+        
+        // Find the highest existing SubscriptionMemberId across all plans and increment
+        const allMembers = (currentAccount.subscriptionPlans || []).flatMap(plan => plan.SubscriptionMembers || []);
+        const maxId = allMembers.reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
+        const planId = currentAccount.subscriptionPlans[0].SubscriptionId;
+        
         const newMember = {
             SubscriptionId: planId,
             SubscriptionMemberId: maxId + 1,
@@ -1267,6 +1099,7 @@ const SubscriptionForm: React.FC = () => {
             assignedUnits: [],
             vehicles: []
         };
+        
         setAccounts(prev => prev.map((account, idx) => 
             idx === activeAccountIndex
                 ? {
@@ -1606,7 +1439,7 @@ const SubscriptionForm: React.FC = () => {
                                     error={!!errors.AccountPostalCode}
                                     helperText={errors.AccountPostalCode}
                                     placeholder="12345 or A1A 1A1"
-                                    required
+                                    required={false}
                                 />
                             </Box>
                             <Box sx={{ flexBasis: { xs: '100%', md: '14%' }, minWidth: 150 }}>
@@ -1859,24 +1692,26 @@ const SubscriptionForm: React.FC = () => {
                                     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
                                     setAccounts(prev => prev.map((account, idx) => {
                                         if (idx !== activeAccountIndex) return account;
-                                        const nextId = ((account.subscriptionPlans?.length || 0) + 1);
+                                        // Find the max SubscriptionId in this account's plans
+                                        const maxId = (account.subscriptionPlans || []).reduce((max, p) => Math.max(max, Number(p.SubscriptionId) || 0), 0);
+                                        const nextId = maxId + 1;
                                         const newPlan: SubscriptionPlan = {
                                             SubscriptionId: nextId,
-                                            SubscriptionName: '',
+                                            SubscriptionName: `${currentAccount.AccountFirstName || ''} ${currentAccount.AccountLastName || ''} ${nextId}` || ' ',
                                             SubscriptionType: 'EVERGREEN',
                                             SubscriptionEffectiveDate: firstOfMonth,
                                             SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
                                             SubscriptionMembers: [{
-                                                    SubscriptionId: currentAccount.subscriptionPlans?.[0]?.SubscriptionId || 1,
-                                                    SubscriptionMemberId: 1,
-                                                    SubscriptionMemberFirstName: currentAccount.AccountFirstName || '',
-                                                    SubscriptionMemberLastName: currentAccount.AccountLastName || '',
-                                                    SubscriptionMemberEmail: currentAccount.AccountEmail || '',
-                                                    SubscriptionMemberPhone: currentAccount.AccountPhone || '',
-                                                    SubscriptionMemberRateplanName: '',
-                                                    accessCodes: [],
-                                                    assignedUnits: [],
-                                                    vehicles: []
+                                                SubscriptionId: nextId,
+                                                SubscriptionMemberId: 1,
+                                                SubscriptionMemberFirstName: currentAccount.AccountFirstName || '',
+                                                SubscriptionMemberLastName: currentAccount.AccountLastName || '',
+                                                SubscriptionMemberEmail: currentAccount.AccountEmail || '',
+                                                SubscriptionMemberPhone: currentAccount.AccountPhone || '',
+                                                SubscriptionMemberRateplanName: '',
+                                                accessCodes: [],
+                                                assignedUnits: [],
+                                                vehicles: []
                                             }]
                                         }
                                         return {
@@ -1926,19 +1761,10 @@ const SubscriptionForm: React.FC = () => {
                                         </TableRow>
                                     )}
                                     {(currentAccount.subscriptionPlans || []).map((plan: any) => (
-                                        <TableRow key={plan.id}>
+                                        <TableRow key={plan.SubscriptionId}>
                                             <TableCell align="center">
                                                 <IconButton
-                                                    onClick={() => {
-                                                        setAccounts(prev => prev.map((account, idx) => 
-                                                            idx === activeAccountIndex
-                                                                ? {
-                                                                    ...account,
-                                                                    subscriptionPlans: (account.subscriptionPlans || []).filter((p: any) => p.id !== plan.id)
-                                                                }
-                                                                : account
-                                                        ));
-                                                    }}
+                                                    onClick={() => {removePlan(plan.SubscriptionId)}}
                                                     size="small"
                                                     sx={{ color: '#B20838' }}
                                                 >
@@ -1958,13 +1784,12 @@ const SubscriptionForm: React.FC = () => {
                                                                 ? {
                                                                     ...account,
                                                                     subscriptionPlans: (account.subscriptionPlans || []).map((p: any) =>
-                                                                        p.id === plan.id ? { ...p, SubscriptionId: value } : p
+                                                                        p.SubscriptionId === plan.SubscriptionId ? { ...p, SubscriptionId: value } : p
                                                                     )
                                                                 }
                                                                 : account
                                                         ));
                                                     }}
-                                                    required
                                                     disabled
                                                 />
                                             </TableCell>
@@ -1972,7 +1797,7 @@ const SubscriptionForm: React.FC = () => {
                                                 <TextField
                                                     fullWidth
                                                     size="small"
-                                                    value={plan.SubscriptionName || ''}
+                                                    value={plan.SubscriptionName ||  ' '}
                                                     onChange={e => {
                                                         const value = e.target.value;
                                                         setAccounts(prev => prev.map((account, idx) => 
@@ -1980,7 +1805,7 @@ const SubscriptionForm: React.FC = () => {
                                                                 ? {
                                                                     ...account,
                                                                     subscriptionPlans: (account.subscriptionPlans || []).map((p: any) =>
-                                                                        p.id === plan.id ? { ...p, SubscriptionName: value } : p
+                                                                        p.SubscriptionId === plan.SubscriptionId ? { ...p, SubscriptionName: value } : p
                                                                     )
                                                                 }
                                                                 : account
@@ -1998,10 +1823,9 @@ const SubscriptionForm: React.FC = () => {
                                                             setAccounts(prev => prev.map((account, idx) => 
                                                                 idx === activeAccountIndex
                                                                     ? {
-                                                                        ...account,
-                                                                        subscriptionPlans: (account.subscriptionPlans || []).map((p: any) =>
-                                                                            p.id === plan.id ? { ...p, SubscriptionType: value } : p
-                                                                        )
+                                                                        ...account,                                                                    subscriptionPlans: (account.subscriptionPlans || []).map((p: any) =>
+                                                                        p.SubscriptionId === plan.SubscriptionId ? { ...p, SubscriptionType: value } : p
+                                                                    )
                                                                     }
                                                                     : account
                                                             ));
@@ -2035,7 +1859,7 @@ const SubscriptionForm: React.FC = () => {
                                                                 ? {
                                                                     ...account,
                                                                     subscriptionPlans: (account.subscriptionPlans || []).map((p: any) =>
-                                                                        p.id === plan.id ? { ...p, SubscriptionEffectiveDate: value } : p
+                                                                        p.SubscriptionId === plan.SubscriptionId ? { ...p, SubscriptionEffectiveDate: value } : p
                                                                     )
                                                                 }
                                                                 : account
@@ -2054,10 +1878,9 @@ const SubscriptionForm: React.FC = () => {
                                                             setAccounts(prev => prev.map((account, idx) => 
                                                                 idx === activeAccountIndex
                                                                     ? {
-                                                                        ...account,
-                                                                        subscriptionPlans: (account.subscriptionPlans || []).map((p: any) =>
-                                                                            p.id === plan.id ? { ...p, SubscriptionInvoiceTemplate: value } : p
-                                                                        )
+                                                                        ...account,                                                                    subscriptionPlans: (account.subscriptionPlans || []).map((p: any) =>
+                                                                        p.SubscriptionId === plan.SubscriptionId ? { ...p, SubscriptionInvoiceTemplate: value } : p
+                                                                    )
                                                                     }
                                                                     : account
                                                             ));
@@ -2138,15 +1961,15 @@ const SubscriptionForm: React.FC = () => {
         <Box sx={{ display: 'flex', gap: 2, mb: 2, mt: 1 }}>
           <TextField
             label="First Name"
-            value={member.SubscriptionMemberFirstName}
+            value={member.SubscriptionMemberFirstName || currentAccount.AccountFirstName || ''}
             onChange={e => {
               const value = e.target.value;
               setAccounts(prev => prev.map((account, accountIdx) =>
                 accountIdx === activeAccountIndex
                   ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                      planIdx === 0
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan) =>
+                      plan.SubscriptionId === member.SubscriptionId
                         ? {
                           ...plan,
                           SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
@@ -2163,15 +1986,15 @@ const SubscriptionForm: React.FC = () => {
           />
           <TextField
             label="Last Name"
-            value={member.SubscriptionMemberLastName}
+            value={member.SubscriptionMemberLastName  || currentAccount.AccountLastName || ''}
             onChange={e => {
               const value = e.target.value;
               setAccounts(prev => prev.map((account, accountIdx) =>
                 accountIdx === activeAccountIndex
                   ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                      planIdx === 0
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan) =>
+                      plan.SubscriptionId === member.SubscriptionId
                         ? {
                           ...plan,
                           SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
@@ -2188,15 +2011,15 @@ const SubscriptionForm: React.FC = () => {
           />
           <TextField
             label="Email"
-            value={member.SubscriptionMemberEmail}
+            value={member.SubscriptionMemberEmail || currentAccount.AccountEmail || ''}
             onChange={e => {
               const value = e.target.value;
               setAccounts(prev => prev.map((account, accountIdx) =>
                 accountIdx === activeAccountIndex
                   ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                      planIdx === 0
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan) =>
+                      plan.SubscriptionId === member.SubscriptionId
                         ? {
                           ...plan,
                           SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
@@ -2213,15 +2036,15 @@ const SubscriptionForm: React.FC = () => {
           />
           <TextField
             label="Phone"
-            value={member.SubscriptionMemberPhone}
+            value={member.SubscriptionMemberPhone || currentAccount.AccountPhone || ''}
             onChange={e => {
               const value = e.target.value;
               setAccounts(prev => prev.map((account, accountIdx) =>
                 accountIdx === activeAccountIndex
                   ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                      planIdx === 0
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan) =>
+                      plan.SubscriptionId === member.SubscriptionId
                         ? {
                           ...plan,
                           SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
@@ -2245,8 +2068,8 @@ const SubscriptionForm: React.FC = () => {
                 accountIdx === activeAccountIndex
                   ? {
                     ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                      planIdx === 0
+                    subscriptionPlans: (account.subscriptionPlans || []).map((plan) =>
+                      plan.SubscriptionId === member.SubscriptionId
                         ? {
                           ...plan,
                           SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
@@ -2273,8 +2096,8 @@ const SubscriptionForm: React.FC = () => {
                     accountIdx === activeAccountIndex
                     ? {
                         ...account,
-                        subscriptionPlans: (account.subscriptionPlans || []).map((plan, planIdx) =>
-                            planIdx === 0
+                        subscriptionPlans: (account.subscriptionPlans || []).map((plan) =>
+                            plan.SubscriptionId === member.SubscriptionId
                             ? {
                                 ...plan,
                                 SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
@@ -2299,7 +2122,7 @@ const SubscriptionForm: React.FC = () => {
 
         {/* Access Codes */}
         <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Access Codes</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{accessCodeLabel}</Typography>
           {(member.accessCodes || []).map((code, codeIdx) => (
             <Box key={code.id || codeIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, mt: 1 }}>
                 <TextField
@@ -2343,7 +2166,7 @@ const SubscriptionForm: React.FC = () => {
 
         {/* Assigned Units */}
         <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Assigned Units</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{assignedUnitLabel}</Typography>
           {(member.assignedUnits || []).map((unit, unitIdx) => (
             <Box key={unit.id || unitIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 , mt: 1 }}>
               <TextField
