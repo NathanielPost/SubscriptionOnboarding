@@ -5,7 +5,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
   Box, Button, Typography, TextField, Select, MenuItem, FormControl, InputLabel, FormHelperText, Paper,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Alert, SelectChangeEvent,
-  Autocomplete, Tooltip, Checkbox, FormControlLabel, Chip, Accordion, AccordionSummary, AccordionDetails,
+  Autocomplete, Tooltip, Checkbox, FormControlLabel, Chip, Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
 import AddIcon from '@mui/icons-material/Add';
@@ -846,7 +846,7 @@ const SubscriptionForm: React.FC = () => {
                         AccountCountry: account.AccountCountry,
                         AccountType: account.AccountType,
                         // Billing Info
-                        AccountBillToName: account.AccountBillToName,
+                        AccountBillToName: account.AccountBillToFirstName + ' ' + account.AccountBillToLastName,
                         AccountBillToFirstName: account.AccountBillToFirstName,
                         AccountBillToLastName: account.AccountBillToLastName,
                         AccountBillToEmail: account.AccountBillToEmail,
@@ -1067,7 +1067,6 @@ const SubscriptionForm: React.FC = () => {
             AccountType: 'Individual',
             
             // Billing Information
-            AccountBillToName: 'Nate Post',
             AccountBillToFirstName: 'Nate',
             AccountBillToLastName: 'Post',
             AccountBillToEmail: 'post@example.com',
@@ -1249,80 +1248,6 @@ const SubscriptionForm: React.FC = () => {
         reader.readAsBinaryString(file);
     };
 
-    {/*
-    const validateAccountFields = () => {
-        const newErrors: { [key: string]: string } = {};
-        let isValid = true;
-
-        // Required fields validation for Account Information
-        const requiredFields: (keyof SubscriptionData)[] = [
-            'AccountId', 'AccountFirstName', 'AccountLastName', 'AccountEmail',
-            'AccountState', 'AccountPostalCode', 'AccountCountry', 'AccountType',
-        ];
-
-        requiredFields.forEach(field => {
-            const value = formData[field];
-            const error = validateField(field, value);
-            if (error) {
-                newErrors[field] = error;
-                isValid = false;
-            }
-        });
-
-        setErrors(prev => ({ ...prev, ...newErrors }));
-        return isValid;
-    };
-
-    const validateBillingFields = () => {
-        const newErrors: { [key: string]: string } = {};
-        let isValid = true;
-
-        // Required fields validation for Billing Information
-        const requiredFields: (keyof SubscriptionData)[] = [
-            'AccountBillToName', 'AccountBillToFirstName', 'AccountBillToLastName', 
-            'AccountBillToEmail', 'AccountBillToState', 'AccountBillToCountry',
-        ];
-
-        requiredFields.forEach(field => {
-            const value = formData[field];
-            const error = validateField(field, value);
-            if (error) {
-                newErrors[field] = error;
-                isValid = false;
-            }
-        });
-
-        setErrors(prev => ({ ...prev, ...newErrors }));
-        return isValid;
-    };
-
-    const handleAccountNext = () => {
-        if (validateAccountFields()) {
-            // Move to Billing Information section
-            const billingSection = document.getElementById('billing-section');
-            if (billingSection) {
-                billingSection.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-    };
-
-    const handleBillingNext = () => {
-        if (validateBillingFields()) {
-            // Move to Subscription Plans section
-            const subscriptionSection = document.getElementById('subscription-section');
-            if (subscriptionSection) {
-                subscriptionSection.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-    };
-
-    // --- BILLING STATE/PROVINCE AUTOCOMPLETE ---
-    const billingStateOptions = currentAccount.AccountBillToCountry === 'US'
-        ? states
-        : currentAccount.AccountBillToCountry === 'CA'
-            ? provinces
-            : [...states, ...provinces];
-    */ }
     const addMember = () => {
         // Add member to the first subscription plan (if exists)
         // if ((currentAccount.subscriptionPlans && currentAccount.subscriptionPlans[0]?.SubscriptionMembers || []).length >= 10) return;
@@ -1579,6 +1504,7 @@ const SubscriptionForm: React.FC = () => {
 
                     {/* Account Information Section */}
                     <Paper sx={{ p: 4, mb: 4 }}>
+                        
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                             <Typography variant="h5" sx={{ color: '#B20838', fontWeight: 600, mr: 1 }}>
                                 Account Information
@@ -1587,9 +1513,9 @@ const SubscriptionForm: React.FC = () => {
                                 <InfoIcon sx={{ color: '#007dba', fontSize: 20 }} />
                             </Tooltip>
                         </Box>
-
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '15%' }, minWidth: 120 }}>
+                        
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '9%' } }}>
                                 <TextField
                                     fullWidth
                                     label="Account ID *"
@@ -1601,7 +1527,7 @@ const SubscriptionForm: React.FC = () => {
                                     disabled
                                 />
                             </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="First Name"
@@ -1612,7 +1538,7 @@ const SubscriptionForm: React.FC = () => {
                                     required
                                 />
                             </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="Last Name"
@@ -1623,8 +1549,7 @@ const SubscriptionForm: React.FC = () => {
                                     required
                                 />
                             </Box>
-
-                            <Box sx={{ flexBasis: { xs: '100%', md: '48%' }, minWidth: 250 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '38%' }, minWidth: 250 }}>
                                 <TextField
                                     fullWidth
                                     label="Email"
@@ -1636,19 +1561,19 @@ const SubscriptionForm: React.FC = () => {
                                     required
                                 />
                             </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '48%' }, minWidth: 250 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '34.5%' }, minWidth: 250 }}>
                                 <TextField
                                     fullWidth
                                     label="Phone"
                                     value={currentAccount.AccountPhone || ''}
                                     onChange={(e) => handlePhoneChange('AccountPhone', e.target.value)}
                                     error={!!errors.AccountPhone}
-                                    helperText={errors.AccountPhone || 'Format: (XXX)XXX-XXXX'}
+                                    helperText={errors.AccountPhone}
                                     placeholder="(XXX)XXX-XXXX"
                                 />
                             </Box>
 
-                            <Box sx={{ flexBasis: { xs: '100%', md: '65%' }, minWidth: 300 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '36%' }, minWidth: 300 }}>
                                 <TextField
                                     fullWidth
                                     label="Address Line 1"
@@ -1656,7 +1581,7 @@ const SubscriptionForm: React.FC = () => {
                                     onChange={(e) => handleInputChange('AccountAddress1', e.target.value)}
                                 />
                             </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '24%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="Address Line 2"
@@ -1664,8 +1589,27 @@ const SubscriptionForm: React.FC = () => {
                                     onChange={(e) => handleInputChange('AccountAddress2', e.target.value)}
                                 />
                             </Box>
-
-                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '20%' }, minWidth: 150 }}>
+                                <TextField
+                                    fullWidth
+                                    label="City"
+                                    value={currentAccount.AccountCity || ''}
+                                    onChange={(e) => handleInputChange('AccountCity', e.target.value)}
+                                />
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '19%' }, minWidth: 150 }}>
+                                <TextField
+                                    fullWidth
+                                    label="Postal Code"
+                                    value={currentAccount.AccountPostalCode || ''}
+                                    onChange={(e) => handleInputChange('AccountPostalCode', e.target.value)}
+                                    error={!!errors.AccountPostalCode}
+                                    helperText={errors.AccountPostalCode}
+                                    placeholder="12345 or A1A 1A1"
+                                    required
+                                />
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '14%' }, minWidth: 150 }}>
                                 <Autocomplete
                                     fullWidth
                                     options={
@@ -1695,27 +1639,7 @@ const SubscriptionForm: React.FC = () => {
                                     }}
                                 />
                             </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
-                                <TextField
-                                    fullWidth
-                                    label="City"
-                                    value={currentAccount.AccountCity || ''}
-                                    onChange={(e) => handleInputChange('AccountCity', e.target.value)}
-                                />
-                            </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Postal Code"
-                                    value={currentAccount.AccountPostalCode || ''}
-                                    onChange={(e) => handleInputChange('AccountPostalCode', e.target.value)}
-                                    error={!!errors.AccountPostalCode}
-                                    helperText={errors.AccountPostalCode || 'US: 12345 or 12345-6789, CA: A1A 1A1'}
-                                    placeholder="12345 or A1A 1A1"
-                                    required
-                                />
-                            </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '12%' }, minWidth: 150 }}>
                                 <FormControl fullWidth error={!!errors.AccountCountry}>
                                     <InputLabel>Country *</InputLabel>
                                     <Select
@@ -1732,7 +1656,7 @@ const SubscriptionForm: React.FC = () => {
                                 </FormControl>
                             </Box>
 
-                            <Box sx={{ flexBasis: { xs: '100%', md: '48%' }, minWidth: 250 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '25%' }, minWidth: 250 }}>
                                 <FormControl fullWidth error={!!errors.AccountType}>
                                     <InputLabel>Account Type *</InputLabel>
                                     <Select
@@ -1783,21 +1707,8 @@ const SubscriptionForm: React.FC = () => {
                                 />
                             </Box>
                         </Box>
-
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Bill To Name"
-                                    value={currentAccount.AccountBillToName || ''}
-                                    onChange={(e) => handleInputChange('AccountBillToName', e.target.value)}
-                                    disabled={copyAccountToBilling}
-                                    error={!!errors.AccountBillToName}
-                                    helperText={errors.AccountBillToName}
-                                    required
-                                />
-                            </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '29%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="First Name"
@@ -1809,7 +1720,7 @@ const SubscriptionForm: React.FC = () => {
                                     required
                                 />
                             </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '29%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="Last Name"
@@ -1821,8 +1732,7 @@ const SubscriptionForm: React.FC = () => {
                                     required
                                 />
                             </Box>
-
-                            <Box sx={{ flexBasis: { xs: '100%', md: '48%' }, minWidth: 250 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '36%' }, minWidth: 250 }}>
                                 <TextField
                                     fullWidth
                                     label="Email"
@@ -1835,7 +1745,7 @@ const SubscriptionForm: React.FC = () => {
                                     required
                                 />
                             </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '48%' }, minWidth: 250 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 250 }}>
                                 <TextField
                                     fullWidth
                                     label="Phone"
@@ -1843,12 +1753,12 @@ const SubscriptionForm: React.FC = () => {
                                     onChange={(e) => handlePhoneChange('AccountBillToPhone', e.target.value)}
                                     disabled={copyAccountToBilling}
                                     error={!!errors.AccountBillToPhone}
-                                    helperText={errors.AccountBillToPhone || 'Format: (XXX)XXX-XXXX'}
+                                    helperText={errors.AccountBillToPhone}
                                     placeholder="(XXX)XXX-XXXX"
                                 />
                             </Box>
 
-                            <Box sx={{ flexBasis: { xs: '100%', md: '65%' }, minWidth: 300 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '40%' }, minWidth: 300 }}>
                                 <TextField
                                     fullWidth
                                     label="Address 1"
@@ -1859,7 +1769,7 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountBillToAddress1}
                                 />
                             </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '30%' }, minWidth: 200 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '24%' }, minWidth: 200 }}>
                                 <TextField
                                     fullWidth
                                     label="Address 2"
@@ -1870,8 +1780,30 @@ const SubscriptionForm: React.FC = () => {
                                     helperText={errors.AccountBillToAddress2}
                                 />
                             </Box>
-
-                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
+                            <Box sx={{ml:9, flexBasis: { xs: '100%', md: '25%' }, minWidth: 150 }}>
+                                <TextField
+                                    fullWidth
+                                    label="City"
+                                    value={currentAccount.AccountBillToCity || ''}
+                                    onChange={(e) => handleInputChange('AccountBillToCity', e.target.value)}
+                                    disabled={copyAccountToBilling}
+                                    error={!!errors.AccountBillToCity}
+                                    helperText={errors.AccountBillToCity}
+                                />
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '25%' }, minWidth: 150 }}>
+                                <TextField
+                                    fullWidth
+                                    label="Postal Code"
+                                    value={currentAccount.AccountBillToPostalCode || ''}
+                                    onChange={(e) => handleInputChange('AccountBillToPostalCode', e.target.value)}
+                                    disabled={copyAccountToBilling}
+                                    error={!!errors.AccountBillToPostalCode}
+                                    helperText={errors.AccountBillToPostalCode}
+                                    placeholder="12345 or A1A 1A1"
+                                />
+                            </Box>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '14%' }, minWidth: 150 }}>
                                 <Autocomplete
                                     fullWidth
                                     options={states}
@@ -1883,7 +1815,7 @@ const SubscriptionForm: React.FC = () => {
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
-                                            label="State *"
+                                            label="State"
                                             error={!!errors.AccountBillToState}
                                             helperText={errors.AccountBillToState}
                                             required
@@ -1891,30 +1823,7 @@ const SubscriptionForm: React.FC = () => {
                                     )}
                                 />
                             </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
-                                <TextField
-                                    fullWidth
-                                    label="City"
-                                    value={currentAccount.AccountBillToCity || ''}
-                                    onChange={(e) => handleInputChange('AccountBillToCity', e.target.value)}
-                                    disabled={copyAccountToBilling}
-                                    error={!!errors.AccountBillToCity}
-                                    helperText={errors.AccountBillToCity}
-                                />
-                            </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Postal Code"
-                                    value={currentAccount.AccountBillToPostalCode || ''}
-                                    onChange={(e) => handleInputChange('AccountBillToPostalCode', e.target.value)}
-                                    disabled={copyAccountToBilling}
-                                    error={!!errors.AccountBillToPostalCode}
-                                    helperText={errors.AccountBillToPostalCode || 'US: 12345 or 12345-6789, CA: A1A 1A1'}
-                                    placeholder="12345 or A1A 1A1"
-                                />
-                            </Box>
-                            <Box sx={{ flexBasis: { xs: '100%', md: '23%' }, minWidth: 150 }}>
+                            <Box sx={{ flexBasis: { xs: '100%', md: '12%' }, minWidth: 150 }}>
                                 <FormControl fullWidth disabled={copyAccountToBilling} error={!!errors.AccountBillToCountry}>
                                     <InputLabel>Country *</InputLabel>
                                     <Select
@@ -2226,7 +2135,7 @@ const SubscriptionForm: React.FC = () => {
       <AccordionDetails>
         {/* Member Info */}
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Member Information</Typography>
-        <Box sx={{ display: 'flex', gap: 2, mb: 2}}>
+        <Box sx={{ display: 'flex', gap: 2, mb: 2, mt: 1 }}>
           <TextField
             label="First Name"
             value={member.SubscriptionMemberFirstName}
@@ -2392,7 +2301,7 @@ const SubscriptionForm: React.FC = () => {
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Access Codes</Typography>
           {(member.accessCodes || []).map((code, codeIdx) => (
-            <Box key={code.id || codeIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Box key={code.id || codeIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, mt: 1 }}>
                 <TextField
                     label="Code"
                     value={code.code}
@@ -2436,7 +2345,7 @@ const SubscriptionForm: React.FC = () => {
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Assigned Units</Typography>
           {(member.assignedUnits || []).map((unit, unitIdx) => (
-            <Box key={unit.id || unitIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Box key={unit.id || unitIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 , mt: 1 }}>
               <TextField
                 label="Unit"
                 value={unit.unit}
@@ -2466,7 +2375,7 @@ const SubscriptionForm: React.FC = () => {
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Vehicles</Typography>
           {(member.vehicles || []).map((vehicle, vehicleIdx) => (
-            <Box key={vehicle.id || vehicleIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Box key={vehicle.id || vehicleIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 , mt: 1 }}>
               <TextField
                 label="Name"
                 value={vehicle.name}
