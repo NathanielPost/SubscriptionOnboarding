@@ -1957,6 +1957,35 @@ const SubscriptionForm: React.FC = () => {
                             >
                                 Add Subscription
                             </Button>
+                            <Button variant="outlined"
+                                sx={{ ml: 2, textTransform: 'none', fontWeight: 600, fontSize: '0.95rem', px: 2, py: 1 }}
+                                onClick={() => {
+                                    const now = new Date();
+                                    let year = now.getFullYear();
+                                    let month = now.getMonth() + 1;
+                                    if (now.getMonth() === 11) { // December is 11 in JS
+                                        year = now.getFullYear() + 1;
+                                        month = 1;
+                                    }
+                                    const firstOfMonth = new Date(year, month, 1);
+                                    setAccounts(prev => prev.map((account, idx) => 
+                                        idx === activeAccountIndex
+                                            ? {
+                                                ...account,
+                                                subscriptionPlans: (account.subscriptionPlans || []).map(plan => ({
+                                                    ...plan,
+                                                    SubscriptionName: `${currentAccount.AccountFirstName || ''} ${currentAccount.AccountLastName || ''} ${plan.SubscriptionId}` || ' ',
+                                                    SubscriptionType: 'EVERGREEN',
+                                                    SubscriptionEffectiveDate: firstOfMonth,
+                                                    SubscriptionInvoiceTemplate: 'LAZ_STANDARD'
+                                                }))
+                                            }
+                                            : account
+                                    ));
+                                }}
+                            >
+                                autofill basic info
+                            </Button>
                         </Box>
                         <TableContainer component={Paper}>
                             <Table>
