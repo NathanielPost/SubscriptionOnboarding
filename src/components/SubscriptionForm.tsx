@@ -1088,10 +1088,10 @@ const SubscriptionForm: React.FC = () => {
                 }
 
                 // Map each data row to a member object
-                const newMembers: Partial<memberInfo>[] = rows.slice(1).map((row: any[]) => {
+                const newMembers: memberInfo[] = rows.slice(1).map((row: any[]) => {
                     const get = (col: string) => {
                         const idx = header.indexOf(col.toLowerCase());
-                        return idx !== -1 ? row[idx] : '';
+                        return idx !== -1 ? (row[idx] || '').toString().trim() : '';
                     };
                     return {
                         SubscriptionId: 1,
@@ -1100,7 +1100,7 @@ const SubscriptionForm: React.FC = () => {
                         SubscriptionMemberLastName: get('Last Name') || '',
                         SubscriptionMemberEmail: get('Email') || '',
                         SubscriptionMemberPhone: get('Phone') || '',
-                        SubscriptionMemberRateplanName: `${get('Rate Plan Name') || ''}` || ' ',
+                        SubscriptionMemberRateplanName: get('Rate Plan Name') || 'Default Plan',
                         accessCodes: [
                             { id: '1', code: get('Access Code1') || '', type: get('Access Code Type1') || '' },
                             { id: '2', code: get('Access Code2') || '', type: get('Access Code Type2') || '' },
@@ -1117,6 +1117,70 @@ const SubscriptionForm: React.FC = () => {
                         createdAt: Date.now()
                     };
                 });
+                // Inside handleImportParkerData, after parsing newMembers:
+                setAccounts(prev => prev.map((account, idx) => {
+                    if (idx !== activeAccountIndex) return account;
+
+                    // Find or create the first subscription plan
+                    let plans = account.subscriptionPlans || [];
+                    let firstPlan: SubscriptionPlan;
+                    let maxMemberId = plans.flatMap(plan => plan.SubscriptionMembers || []).reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
+
+                    if (plans.length === 0) {
+                        // Create a new plan if none exist
+                        firstPlan = {
+                            SubscriptionId: 1,
+                            SubscriptionName: 'Imported Plan',
+                            SubscriptionType: 'EVERGREEN',
+                            SubscriptionEffectiveDate: new Date(),
+                            SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
+                            SubscriptionMembers: []
+                        };
+                        plans = [firstPlan];
+                    } else {
+                        firstPlan = plans[0];
+                    }
+
+                    // Add all imported members to the first plan
+                    const importedMembers: memberInfo[] = newMembers.map(member => {
+                        maxMemberId += 1;
+                        return {
+                            SubscriptionId: firstPlan.SubscriptionId,
+                            SubscriptionMemberId: maxMemberId,
+                            SubscriptionMemberFirstName: member.SubscriptionMemberFirstName,
+                            SubscriptionMemberLastName: member.SubscriptionMemberLastName,
+                            SubscriptionMemberEmail: member.SubscriptionMemberEmail,
+                            SubscriptionMemberPhone: member.SubscriptionMemberPhone,
+                            SubscriptionMemberRateplanName: member.SubscriptionMemberRateplanName,
+                            accessCodes: member.accessCodes,
+                            assignedUnits: member.assignedUnits,
+                            vehicles: member.vehicles,
+                            createdAt: member.createdAt
+                        };
+                    });
+
+                    // Update the first plan's members
+                    const updatedPlans: SubscriptionPlan[] = [
+                        {
+                            SubscriptionId: firstPlan.SubscriptionId,
+                            SubscriptionName: firstPlan.SubscriptionName,
+                            SubscriptionType: firstPlan.SubscriptionType,
+                            SubscriptionEffectiveDate: firstPlan.SubscriptionEffectiveDate,
+                            SubscriptionInvoiceTemplate: firstPlan.SubscriptionInvoiceTemplate,
+                            SubscriptionMembers: [
+                                ...(firstPlan.SubscriptionMembers || []),
+                                ...importedMembers
+                            ]
+                        },
+                        ...plans.slice(1)
+                    ];
+
+                    return {
+                        ...account,
+                        subscriptionPlans: updatedPlans
+                    };
+                }));
+                {/*
                 setAccounts(prev => prev.map((account, idx) => {
                     if (idx !== activeAccountIndex) return account;
 
@@ -1209,6 +1273,7 @@ const SubscriptionForm: React.FC = () => {
                         ]
                     };
                 }));
+                */}
                 setImportSuccess('Parker data imported successfully!');
                 window.scrollTo({ top: 200, behavior: 'smooth' });
             } catch (err: any) {
