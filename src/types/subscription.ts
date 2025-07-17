@@ -39,6 +39,7 @@ export interface memberInfo {
     accessCodes: AccessCode[];
     assignedUnits: AssignedUnit[];
     vehicles: Vehicle[];
+    createdAt?: number; // Timestamp for sorting
 }
 
 export interface SubscriptionData{
