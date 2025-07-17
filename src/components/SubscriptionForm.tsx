@@ -51,32 +51,69 @@ const companyTheme = createTheme({
 const SubscriptionForm: React.FC = () => {
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        setActiveAccountIds([getActiveAccountIds()[0]]);
     }, []);
-    const getAccountId = (): number => {
-        const key = 'accountIdCounter';
-        const currentId = parseInt(localStorage.getItem(key) || '1', 10);
-        localStorage.setItem(key, (currentId).toString());
-        return currentId;
+
+    // Submitted Account IDs (permanent - never reset except manually)
+    const getSubmittedAccountIds = (): number[] => {
+        const key = 'submittedAccountIds';
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : [];
     };
-    const changeAccountId = () => {
-        const key = 'accountIdCounter';
-        const currentId = parseInt(localStorage.getItem(key) || '1', 10);
-        localStorage.setItem(key, (currentId + 1).toString());
-        return currentId + 1;
-    }
+
+    const addToSubmittedAccountIds = (accountIds: number[]) => {
+        const key = 'submittedAccountIds';
+        const existing = getSubmittedAccountIds();
+        const combined = [...new Set([...existing, ...accountIds])]; // Remove duplicates
+        localStorage.setItem(key, JSON.stringify(combined));
+    };
+
+    // Active Account IDs (temporary - reset when accounts deleted)
+    const getActiveAccountIds = (): number[] => {
+        const key = 'activeAccountIds';
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : [];
+    };
+
+    const setActiveAccountIds = (accountIds: number[]) => {
+        const key = 'activeAccountIds';
+        localStorage.setItem(key, JSON.stringify(accountIds));
+    };
+
+    const getNextAccountId = (): number => {
+        const submittedIds = getSubmittedAccountIds();
+        const activeIds = getActiveAccountIds();
+        const allIds = [...new Set([...submittedIds, ...activeIds])];
+        return allIds.length + 1;
+    };
+
+    const addActiveAccountId = (accountId: number) => {
+        const activeIds = getActiveAccountIds();
+        if (!activeIds.includes(accountId)) {
+            activeIds.push(accountId);
+            setActiveAccountIds(activeIds);
+        }
+    };
+
     const resetAccountIdCounter = () => {
         const resetConfirm = window.confirm("Are you sure you want to reset the Account ID counter? ");
         if (!resetConfirm) {
             alert("Account ID counter reset cancelled.");
             return;
         } else {
-            const key = 'accountIdCounter';
-            localStorage.setItem(key, '1');
+            // Only reset submitted IDs (this clears everything)
+            const submittedKey = 'submittedAccountIds';
+            const activeKey = 'activeAccountIds';
+            localStorage.setItem(submittedKey, JSON.stringify([]));
+            localStorage.setItem(activeKey, JSON.stringify([]));
+            
             // Reset the form and assign a new Account ID
+            const newAccountId = getNextAccountId();
             setAccounts([{
                 RunId: 10,
-                AccountId: getAccountId(),
+                AccountId: newAccountId,
             }]);
+            addActiveAccountId(newAccountId);
             setActiveAccountIndex(0);
             setErrors({});
             setCopyAccountToBilling(false);
@@ -85,39 +122,80 @@ const SubscriptionForm: React.FC = () => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
-    const [accounts, setAccounts] = useState<Partial<SubscriptionData>[]>([
-    {
-        RunId: 10,
-        AccountId: getAccountId(), // Use a function to get the next account ID
-    }]);
+
+    // Initialize accounts with proper ID tracking - FIXED
+    const [accounts, setAccounts] = useState<Partial<SubscriptionData>[]>(() => {
+        // Reset active IDs first (in case there are any lingering from previous session)
+        const activeKey = 'activeAccountIds';
+        localStorage.setItem(activeKey, JSON.stringify([]));
+        
+        // Calculate the initial ID - now only based on submitted IDs
+        const submittedIds = getSubmittedAccountIds();
+        const initialAccountId = submittedIds.length + 1;
+        
+        // Add to active IDs immediately
+        const updatedActiveIds = [initialAccountId];
+        setActiveAccountIds(updatedActiveIds);
+        
+        return [{
+            RunId: 10,
+            AccountId: initialAccountId,
+        }];
+    });
+
     const [activeAccountIndex, setActiveAccountIndex] = useState(0);
     const currentAccount = accounts[activeAccountIndex] || {};
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [copyAccountToBilling, setCopyAccountToBilling] = useState(false);
-    
-    /*
-    const duplicateAccount = (index: number) => {
-        const accountToDuplicate = accounts[index];
-        const newId = changeAccountId() 
-        const newAccount = {
-            ...accountToDuplicate,            
-            AccountId: newId,
-            AccountEmail: '', // Clear unique fields
-            // Clear other unique identifiers
-        };
-        
-        setAccounts(prev => [...prev, newAccount]);
-    };
-    */
-
 
     const deleteAccount = (index: number) => {
         if (accounts.length > 1) {
-            setAccounts(prev => prev.filter((_, i) => i !== index));
-            if (activeAccountIndex >= accounts.length - 1) {
-                setActiveAccountIndex(Math.max(0, accounts.length - 2));
+            // Remove the account from the array
+            const remainingAccounts = accounts.filter((_, i) => i !== index);
+            
+            // Reset active account IDs and reassign sequentially starting from the minimum allowed
+            const submittedCount = getSubmittedAccountIds().length;
+            const startingId = submittedCount + 1;
+            
+            // Reassign Account IDs sequentially
+            const updatedAccounts = remainingAccounts.map((account, newIndex) => {
+                const newAccountId = startingId + newIndex;
+                return {
+                    ...account,
+                    AccountId: newAccountId
+                };
+            });
+            
+            // Update active account IDs list to match the new assignments
+            const newActiveIds = updatedAccounts.map(account => account.AccountId);
+            setActiveAccountIds(newActiveIds);
+            
+            setAccounts(updatedAccounts);
+            
+            // Adjust active account index
+            if (activeAccountIndex >= updatedAccounts.length) {
+                setActiveAccountIndex(Math.max(0, updatedAccounts.length - 1));
+            } else if (activeAccountIndex > index) {
+                setActiveAccountIndex(activeAccountIndex - 1);
             }
         }
+    };
+
+    const addNewAccount = () => {
+        // Calculate the next ID without calling getNextAccountId (which might be called elsewhere)
+        const submittedIds = getSubmittedAccountIds();
+        const activeIds = getActiveAccountIds();
+        const allIds = [...new Set([...submittedIds, ...activeIds])];
+        const newId = allIds.length + 1;
+        
+        const newAccount: Partial<SubscriptionData> = {
+            RunId: 10,
+            AccountId: newId,
+        };
+        
+        addActiveAccountId(newId);
+        setAccounts(prev => [...prev, newAccount]);
+        setActiveAccountIndex(accounts.length); // Switch to new account
     };
 
     const removeMember = (id: string) => {
@@ -149,6 +227,8 @@ const SubscriptionForm: React.FC = () => {
     const [importSuccess, setImportSuccess] = useState<string | null>(null);
     const [isParkerImporting, setIsParkerImporting] = useState(false);
     const [isAccountImporting, setIsAccountImporting] = useState(false);
+    const [memberPlanWarning, setMemberPlanWarning] = useState<string | null>(null);
+    const [expandedAccordions, setExpandedAccordions] = useState<Set<string>>(new Set());
 
     const accessCodeLabel = "Access Codes (Credentials)";
     const assignedUnitLabel = "Assigned Units (Space Number)";
@@ -575,17 +655,6 @@ const SubscriptionForm: React.FC = () => {
         setErrors(prev => ({ ...prev, [`${activeAccountIndex}_${field}`]: error }));
     };
 
-    const addNewAccount = () => {
-        const newId = changeAccountId();
-        const newAccount: Partial<SubscriptionData> = {
-            RunId: 10,
-            AccountId: newId,
-        };
-        
-        setAccounts(prev => [...prev, newAccount]);
-        setActiveAccountIndex(accounts.length); // Switch to new account
-    };
-
     const validateForm = (): boolean => {
         const newErrors: { [key: string]: string } = {};
         let isValid = true;
@@ -768,26 +837,33 @@ const SubscriptionForm: React.FC = () => {
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    currentAccount.RunId = 10;
-    console.log('Submitting form with current account:', currentAccount);
-    if (validateAllAccounts() && validateForm()) {
-        try {
-
-            // Export all accounts at once
-            const filename = exportAllAccountsToExcel();
-            alert(`Successfully exported ${accounts.length} account(s) to ${filename}!`);
-            changeAccountId();
-            window.location.reload();
-        } catch (error) {
-            console.error('Error during form submission:', error);
-            alert('Form submitted successfully, but there was an error generating the Excel file. Please try again.');
+        e.preventDefault();
+        accounts.forEach(account => {
+            account.RunId = 10;
+            account.AccountId = account.AccountId;
+        })
+        console.log('Submitting form with current account:', currentAccount);
+        if (validateAllAccounts() && validateForm()) {
+            try {
+                // Export all accounts at once
+                const filename = exportAllAccountsToExcel();
+                alert(`Successfully exported ${accounts.length} account(s) to ${filename}!`);
+                // Add active account IDs to submitted IDs
+                const activeIds = getActiveAccountIds();
+                addToSubmittedAccountIds(activeIds);
+                
+                // Clear active account IDs since they're now submitted
+                setActiveAccountIds([]);
+                window.location.reload();
+            } catch (error) {
+                console.error('Error during form submission:', error);
+                alert('Form submitted successfully, but there was an error generating the Excel file. Please try again.');
+            }
+        } else {
+            alert('Please fix all validation errors before submitting.');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-    } else {
-        alert('Please fix all validation errors before submitting.');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-};
+    };
 
     const states = [
         'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -861,6 +937,7 @@ const SubscriptionForm: React.FC = () => {
         const testData: Partial<SubscriptionData> = {
             // Account Information
             RunId: 10,
+            AccountId: currentAccount.AccountId,
             AccountFirstName: 'John',
             AccountLastName: 'Doe',
             AccountEmail: 'john.doe@example.com',
@@ -1036,7 +1113,8 @@ const SubscriptionForm: React.FC = () => {
                             { id: '1', name: get('Vehicle1Name') || '', plateNumber: get('Vehicle1PlateNumber') || '', state: get('Vehicle1State') || '', color: get('Vehicle1Color') || '', make: get('Vehicle1Make') || '', model: get('Vehicle1Model') || '' },
                             { id: '2', name: get('Vehicle2Name') || '', plateNumber: get('Vehicle2PlateNumber') || '', state: get('Vehicle2State') || '', color: get('Vehicle2Color') || '', make: get('Vehicle2Make') || '', model: get('Vehicle2Model') || '' },
                             { id: '3', name: get('Vehicle3Name') || '', plateNumber: get('Vehicle3PlateNumber') || '', state: get('Vehicle3State') || '', color: get('Vehicle3Color') || '', make: get('Vehicle3Make') || '', model: get('Vehicle3Model') || '' }
-                        ].filter(vehicle => vehicle.name || vehicle.plateNumber || vehicle.state || vehicle.color || vehicle.make || vehicle.model)
+                        ].filter(vehicle => vehicle.name || vehicle.plateNumber || vehicle.state || vehicle.color || vehicle.make || vehicle.model),
+                        createdAt: Date.now()
                     };
                 });
                 setAccounts(prev => prev.map((account, idx) => {
@@ -1082,7 +1160,8 @@ const SubscriptionForm: React.FC = () => {
                                     SubscriptionMemberRateplanName: member.SubscriptionMemberRateplanName || '',
                                     accessCodes: member.accessCodes || [],
                                     assignedUnits: member.assignedUnits || [],
-                                    vehicles: member.vehicles || []
+                                    vehicles: member.vehicles || [],
+                                    createdAt: Date.now()
                                 };
                             });
                             
@@ -1202,7 +1281,8 @@ const SubscriptionForm: React.FC = () => {
                         return idx !== -1 ? row[idx] : '';
                     };
                     const useBilling = (get('use account address as billing address? (y/n)') || '').toString().toUpperCase().startsWith('Y');
-                    const newId = changeAccountId();
+                    const newId = getNextAccountId();
+                    addActiveAccountId(newId); // Add to active tracking list
                     return {
                         RunId: 10,
                         AccountId: newId,
@@ -1232,7 +1312,7 @@ const SubscriptionForm: React.FC = () => {
                         subscriptionPlans: [
                             {
                                 SubscriptionId: 1,
-                                SubscriptionName: `${get('firstname') || ''} ${get('lastname') || ''} 1` || ' ',
+                                SubscriptionName: `${get('firstname') || ''} ${get('lastname') || ''}` || ' ',
                                 SubscriptionType: 'EVERGREEN',
                                 SubscriptionEffectiveDate: new Date(),
                                 SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
@@ -1276,7 +1356,7 @@ const SubscriptionForm: React.FC = () => {
         if (!currentAccount.subscriptionPlans || currentAccount.subscriptionPlans.length === 0) return;
         
         // Find the highest existing SubscriptionMemberId across all plans and increment
-        const allMembers = (currentAccount.subscriptionPlans || []).flatMap(plan => plan.SubscriptionMembers || []);
+        const allMembers = (currentAccount.subscriptionPlans || []).flatMap(plan => plan.SubscriptionMembers || []).sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
         const maxId = allMembers.reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
         const planId = currentAccount.subscriptionPlans[0].SubscriptionId;
         
@@ -1290,7 +1370,8 @@ const SubscriptionForm: React.FC = () => {
             SubscriptionMemberRateplanName: '',
             accessCodes: [],
             assignedUnits: [],
-            vehicles: []
+            vehicles: [],
+            createdAt: Date.now()
         };
         
         setAccounts(prev => prev.map((account, idx) => 
@@ -1311,6 +1392,10 @@ const SubscriptionForm: React.FC = () => {
                 }
             : account
         ));
+
+        // Auto-expand the accordion for the new member
+        const newAccordionKey = `${planId}-${maxId + 1}`;
+        setExpandedAccordions(prev => new Set([...prev, newAccordionKey]));
     };
 
     return (
@@ -1463,7 +1548,7 @@ const SubscriptionForm: React.FC = () => {
                         <Box sx={{ mt: 2 }}>
                             {accounts.map((account, index) => (
                                 <Chip
-                                    label={`Account ${index + 1}: ${account.AccountFirstName || ''} ${account.AccountLastName || ''}`}
+                                    label={`Account ${account.AccountId}: ${account.AccountFirstName || ''} ${account.AccountLastName || ''}`}
                                     key={index}
                                     variant={activeAccountIndex === index ? "filled" : "outlined"}
                                     onClick={() => setActiveAccountIndex(index)}
@@ -1516,42 +1601,6 @@ const SubscriptionForm: React.FC = () => {
                                     {isAccountImporting ? 'Importing...' : 'Import Account Data'}
                                 </Button>
                             </label>
-                        </Box>
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mt: 2 }}>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                onClick={handleParkerDownloadTemplate}
-                                sx={{ fontWeight: 600 }}
-                            >
-                                Download Parker Data Template
-                            </Button>
-                            <label htmlFor="import-parker-data" style={{ marginBottom: 0 }}>
-                                <input
-                                    id="import-parker-data"
-                                    type="file"
-                                    accept=".xlsx,.xls"
-                                    style={{ display: 'none' }}
-                                    onChange={handleImportParkerData}
-                                    disabled={isParkerImporting}
-                                />
-                                <Button
-                                    variant="contained"
-                                    color="secondary"
-                                    component="span"
-                                    sx={{ fontWeight: 600 }}
-                                    disabled={isParkerImporting}
-                                    startIcon={isParkerImporting ? <CircularProgress size={20} color="inherit" /> : undefined}
-                                >
-                                    {isParkerImporting ? 'Importing...' : 'Import Parker Data'}
-                                </Button>
-                            </label>
-                            {importError && (
-                                <Alert severity="error" sx={{ ml: 2 }}>{importError}</Alert>
-                            )}
-                            {importSuccess && (
-                                <Alert severity="success" sx={{ ml: 2 }}>{importSuccess}</Alert>
-                            )}
                         </Box>
                     </Paper>
 
@@ -1915,15 +1964,21 @@ const SubscriptionForm: React.FC = () => {
                                         // Find the max SubscriptionId in this account's plans
                                         const maxId = (account.subscriptionPlans || []).reduce((max, p) => Math.max(max, Number(p.SubscriptionId) || 0), 0);
                                         const nextId = maxId + 1;
+
+                                        // Find the max SubscriptionMemberId across ALL plans and members
+                                        const allMembers = (account.subscriptionPlans || []).flatMap(plan => plan.SubscriptionMembers || []);
+                                        const maxMemberId = allMembers.reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
+                                        const nextMemberId = maxMemberId + 1;                                   
+
                                         const newPlan: SubscriptionPlan = {
                                             SubscriptionId: nextId,
-                                            SubscriptionName: `${currentAccount.AccountFirstName || ''} ${currentAccount.AccountLastName || ''} ${nextId}` || ' ',
+                                            SubscriptionName: `${currentAccount.AccountFirstName || ''} ${currentAccount.AccountLastName || ''}` || ' ',
                                             SubscriptionType: 'EVERGREEN',
                                             SubscriptionEffectiveDate: firstOfMonth,
                                             SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
                                             SubscriptionMembers: [{
                                                 SubscriptionId: nextId,
-                                                SubscriptionMemberId: 1,
+                                                SubscriptionMemberId: nextMemberId,
                                                 SubscriptionMemberFirstName: currentAccount.AccountFirstName || '',
                                                 SubscriptionMemberLastName: currentAccount.AccountLastName || '',
                                                 SubscriptionMemberEmail: currentAccount.AccountEmail || '',
@@ -1963,7 +2018,7 @@ const SubscriptionForm: React.FC = () => {
                                     const now = new Date();
                                     let year = now.getFullYear();
                                     let month = now.getMonth() + 1;
-                                    if (now.getMonth() === 11) { // December is 11 in JS
+                                    if (now.getMonth() === 11) {
                                         year = now.getFullYear() + 1;
                                         month = 1;
                                     }
@@ -1974,7 +2029,7 @@ const SubscriptionForm: React.FC = () => {
                                                 ...account,
                                                 subscriptionPlans: (account.subscriptionPlans || []).map(plan => ({
                                                     ...plan,
-                                                    SubscriptionName: `${currentAccount.AccountFirstName || ''} ${currentAccount.AccountLastName || ''} ${plan.SubscriptionId}` || ' ',
+                                                    SubscriptionName: `${currentAccount.AccountFirstName || ''} ${currentAccount.AccountLastName || ''}` || ' ',
                                                     SubscriptionType: 'EVERGREEN',
                                                     SubscriptionEffectiveDate: firstOfMonth,
                                                     SubscriptionInvoiceTemplate: 'LAZ_STANDARD'
@@ -2148,29 +2203,76 @@ const SubscriptionForm: React.FC = () => {
                             </Table>
                         </TableContainer>
 
-<Box sx={{ mt: 4 }}>
-  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+<Box sx={{ mt: 3, justifyContent: 'space-between', display: 'flex', alignItems: 'center' }}>
+  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
     <Typography variant="h5" sx={{ color: '#B20838', fontWeight: 600 }}>
-      Members
+        Members
     </Typography>
+    <Typography variant="body1" color='#B20838' sx={{ ml: 0.5, mt: 0.7 }}>
+        (Parkers)
+    </Typography>
+    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mt: 1, ml: 2 }}>
+        <Button
+            variant="contained"
+        color="primary"
+        onClick={handleParkerDownloadTemplate}
+        sx={{ fontWeight: 600 }}
+        >
+            Download Parker Data Template
+        </Button>
+        <label htmlFor="import-parker-data" style={{ marginBottom: 0 }}>
+            <input
+                id="import-parker-data"
+                type="file"
+                accept=".xlsx,.xls"
+                style={{ display: 'none' }}
+                onChange={handleImportParkerData}
+                disabled={isParkerImporting}
+            />
+            <Button
+                variant="contained"
+                color="secondary"
+                component="span"
+                sx={{ fontWeight: 600 }}
+                disabled={isParkerImporting}
+                startIcon={isParkerImporting ? <CircularProgress size={20} color="inherit" /> : undefined}
+            >
+                {isParkerImporting ? 'Importing...' : 'Import Parker Data'}
+            </Button>
+        </label>
+    </Box>
+    {importError && (
+        <Alert severity="error" sx={{ ml: 2 }}>{importError}</Alert>
+    )}
+    {importSuccess && (
+        <Alert severity="success" sx={{ ml: 2 }}>{importSuccess}</Alert>
+    )}
+  </Box>
     <Button
       variant="contained"
       startIcon={<AddIcon />}
       onClick={addMember}
       sx={{
+        ml: 3,
         backgroundColor: '#007dba',
         '&:hover': { backgroundColor: '#005a94' },
         borderRadius: '8px',
         textTransform: 'none',
         fontWeight: 600,
         fontSize: '0.95rem',
-        px: 2,
-        py: 1
-      }}
+        px: 2
+        }}
     >
       Add Member
     </Button>
-  </Box>
+</Box>
+
+  {/* Member Plan Warning */}
+  {memberPlanWarning && (
+    <Alert severity="warning" sx={{ mb: 2, mt: 2 }} onClose={() => setMemberPlanWarning(null)}>
+      {memberPlanWarning}
+    </Alert>
+  )}
 
   {(currentAccount.subscriptionPlans || []).flatMap(plan => plan.SubscriptionMembers || []).length === 0 && (
     <Box sx={{
@@ -2186,7 +2288,25 @@ const SubscriptionForm: React.FC = () => {
     </Box>
   )}
 
-  {(currentAccount.subscriptionPlans || []).flatMap(plan => plan.SubscriptionMembers || []).map((member, idx) => (                    <Accordion key={`${member.SubscriptionId}-${member.SubscriptionMemberId}-${idx}`} sx={{ mb: 2 }}>
+  {(currentAccount.subscriptionPlans || []).flatMap(plan => plan.SubscriptionMembers || []).map((member, idx) => {
+    const accordionKey = `${member.SubscriptionMemberId}`;
+    return (
+    <Accordion 
+      key={accordionKey} 
+      sx={{ mb: 2 }}
+      expanded={expandedAccordions.has(accordionKey)}
+      onChange={(_, isExpanded) => {
+        setExpandedAccordions(prev => {
+          const newSet = new Set(prev);
+          if (isExpanded) {
+            newSet.add(accordionKey);
+          } else {
+            newSet.delete(accordionKey);
+          }
+          return newSet;
+        });
+      }}
+    >
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Typography sx={{ flex: 1 }}>
         {member.SubscriptionMemberFirstName} {member.SubscriptionMemberLastName} (ID: {member.SubscriptionMemberId})
@@ -2209,7 +2329,7 @@ const SubscriptionForm: React.FC = () => {
         <Box sx={{ display: 'flex', gap: 2, mb: 2, mt: 1 }}>
           <TextField
             label="First Name"
-            value={member.SubscriptionMemberFirstName || currentAccount.AccountFirstName || ''}
+            value={member.SubscriptionMemberFirstName || ''}
             onChange={e => {
               const value = e.target.value;
               setAccounts(prev => prev.map((account, accountIdx) =>
@@ -2234,7 +2354,7 @@ const SubscriptionForm: React.FC = () => {
           />
           <TextField
             label="Last Name"
-            value={member.SubscriptionMemberLastName  || currentAccount.AccountLastName || ''}
+            value={member.SubscriptionMemberLastName  || ''}
             onChange={e => {
               const value = e.target.value;
               setAccounts(prev => prev.map((account, accountIdx) =>
@@ -2259,7 +2379,7 @@ const SubscriptionForm: React.FC = () => {
           />
           <TextField
             label="Email"
-            value={member.SubscriptionMemberEmail || currentAccount.AccountEmail || ''}
+            value={member.SubscriptionMemberEmail || ''}
             onChange={e => {
               const value = e.target.value;
               setAccounts(prev => prev.map((account, accountIdx) =>
@@ -2284,7 +2404,7 @@ const SubscriptionForm: React.FC = () => {
           />
           <TextField
             label="Phone"
-            value={member.SubscriptionMemberPhone || currentAccount.AccountPhone || ''}
+            value={member.SubscriptionMemberPhone || ''}
             onChange={e => {
               const value = e.target.value;
               setAccounts(prev => prev.map((account, accountIdx) =>
@@ -2309,10 +2429,7 @@ const SubscriptionForm: React.FC = () => {
           />
           <TextField
             label="Rate Plan Name"
-            value={(() => {
-              const memberPlan = (currentAccount.subscriptionPlans || []).find(p => p.SubscriptionId === member.SubscriptionId);
-              return memberPlan?.SubscriptionName || '';
-            })()}
+            value={member.SubscriptionMemberRateplanName || ''}
             onChange={e => {
               const value = e.target.value;
               setAccounts(prev => prev.map((account, accountIdx) =>
@@ -2338,37 +2455,83 @@ const SubscriptionForm: React.FC = () => {
           <FormControl fullWidth >
             <InputLabel id={`member-plan-select-label-${member.SubscriptionMemberId}`}>Subscription Plan</InputLabel>
             <Select
-                labelId={`member-plan-select-label-${member.SubscriptionMemberId}`}
-                value={member.SubscriptionId}
-                label="Subscription Plan"
-                onChange={e => {
+            labelId={`member-plan-select-label-${member.SubscriptionMemberId}`}
+            value={member.SubscriptionId}
+            label="Subscription Plan"
+            onChange={e => {
                 const newPlanId = Number(e.target.value);
+                
+                // Find the selected plan to get its name
+                const selectedPlan = (currentAccount.subscriptionPlans || []).find(plan => plan.SubscriptionId === newPlanId);
+                
+                // Check if moving this member will leave the old plan with no members
+                const oldPlan = (currentAccount.subscriptionPlans || []).find(plan => plan.SubscriptionId === member.SubscriptionId);
+                const oldPlanMemberCount = (oldPlan?.SubscriptionMembers || []).length;
+                const willLeaveOldPlanEmpty = oldPlanMemberCount === 1;
+
+                // Show warning if moving this member will leave the old plan empty
+                if (willLeaveOldPlanEmpty && newPlanId !== member.SubscriptionId) {
+                    setMemberPlanWarning(
+                        `Warning: Moving ${member.SubscriptionMemberFirstName || ''} ${member.SubscriptionMemberLastName || ''} (ID: ${member.SubscriptionMemberId}) will leave subscription plan "${oldPlan?.SubscriptionName || oldPlan?.SubscriptionId}" with no members.`
+                    );
+                    // Auto-hide warning after 5 seconds
+                    setTimeout(() => setMemberPlanWarning(null), 5000);
+                } else {
+                    setMemberPlanWarning(null);
+                }
+
+                // Keep accordion expanded after plan change
+                const currentAccordionKey = `${member.SubscriptionId}-${member.SubscriptionMemberId}`;
+                const newAccordionKey = `${newPlanId}-${member.SubscriptionMemberId}`;
+                
+                setExpandedAccordions(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(currentAccordionKey); // Remove old key
+                    newSet.add(newAccordionKey); // Add new key
+                    return newSet;
+                });
+                
                 setAccounts(prev => prev.map((account, accountIdx) =>
                     accountIdx === activeAccountIndex
-                    ? {
-                        ...account,
-                        subscriptionPlans: (account.subscriptionPlans || []).map((plan) =>
-                            plan.SubscriptionId === member.SubscriptionId
-                            ? {
-                                ...plan,
-                                SubscriptionMembers: (plan.SubscriptionMembers || []).map((m, mIdx) =>
-                                    mIdx === idx ? { ...m, SubscriptionId: newPlanId } : m
-                                )
+                        ? {
+                            ...account,
+                            subscriptionPlans: (account.subscriptionPlans || []).map((plan) => {
+                                if (plan.SubscriptionId === member.SubscriptionId) {
+                                    // Remove member from current plan by SubscriptionMemberId
+                                    return {
+                                        ...plan,
+                                        SubscriptionMembers: (plan.SubscriptionMembers || []).filter(m => m.SubscriptionMemberId !== member.SubscriptionMemberId)
+                                    };
+                                } else if (plan.SubscriptionId === newPlanId) {
+                                    // Add member to new plan with updated info
+                                    return {
+                                        ...plan,
+                                        SubscriptionMembers: [
+                                            ...(plan.SubscriptionMembers || []),
+                                            {
+                                                ...member,
+                                                SubscriptionId: newPlanId,
+                                                // Optionally update rate plan name to match subscription plan name
+                                                SubscriptionMemberRateplanName: selectedPlan?.SubscriptionName || member.SubscriptionMemberRateplanName
+                                            }
+                                        ]
+                                    };
+                                } else {
+                                    return plan;
                                 }
-                            : plan
-                        )
+                            })
                         }
-                    : account
+                        : account
                 ));
-                }}
+            }}
             >
-                {(currentAccount.subscriptionPlans || []).map(plan => (
+            {(currentAccount.subscriptionPlans || []).map(plan => (
                 <MenuItem key={plan.SubscriptionId} value={plan.SubscriptionId}>
-                    {plan.SubscriptionId} {plan.SubscriptionName ? `- ${plan.SubscriptionName}` : ''}
+                {plan.SubscriptionId} {plan.SubscriptionName ? `- ${plan.SubscriptionName}` : ''}
                 </MenuItem>
-                ))}
+            ))}
             </Select>
-            </FormControl>
+          </FormControl>
         </Box>
 
         {/* Access Codes */}
@@ -2511,8 +2674,9 @@ const SubscriptionForm: React.FC = () => {
         </Box>
       </AccordionDetails>
     </Accordion>
-  ))}
-</Box>
+  );
+  })}
+
                     </Paper>
 
                     {/* Submit Button */}
@@ -2531,7 +2695,7 @@ const SubscriptionForm: React.FC = () => {
                                 },
                             }}
                         >
-                            Create Subscription
+                            Generate Subscription
                         </Button>
                     </Box>
                 </form>
