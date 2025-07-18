@@ -95,25 +95,83 @@ const SubscriptionForm: React.FC = () => {
         }
     };
 
+    // Submitted Subscription IDs (permanent - never reset except manually)
+    const getSubmittedSubscriptionIds = (): number[] => {
+        const key = 'submittedSubscriptionIds';
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : [];
+    };
+
+    const addToSubmittedSubscriptionIds = (subscriptionIds: number[]) => {
+        const key = 'submittedSubscriptionIds';
+        const existing = getSubmittedSubscriptionIds();
+        const combined = [...new Set([...existing, ...subscriptionIds])]; // Remove duplicates
+        localStorage.setItem(key, JSON.stringify(combined));
+    };
+
+    // Active Subscription IDs (temporary - reset when accounts deleted)
+    const getActiveSubscriptionIds = (): number[] => {
+        const key = 'activeSubscriptionIds';
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : [];
+    };
+
+    const setActiveSubscriptionIds = (subscriptionIds: number[]) => {
+        const key = 'activeSubscriptionIds';
+        localStorage.setItem(key, JSON.stringify(subscriptionIds));
+    };
+
+    const getNextSubscriptionId = (): number => {
+        const submittedIds = getSubmittedSubscriptionIds();
+        const activeIds = getActiveSubscriptionIds();
+        const allIds = [...new Set([...submittedIds, ...activeIds])];
+        return allIds.length + 1;
+    };
+
+    const addActiveSubscriptionId = (subscriptionId: number) => {
+        const activeIds = getActiveSubscriptionIds();
+        if (!activeIds.includes(subscriptionId)) {
+            activeIds.push(subscriptionId);
+            setActiveSubscriptionIds(activeIds);
+        }
+    };
+
     const resetAccountIdCounter = () => {
         const resetConfirm = window.confirm("Are you sure you want to reset the Account ID counter? ");
         if (!resetConfirm) {
             alert("Account ID counter reset cancelled.");
             return;
         } else {
-            // Only reset submitted IDs (this clears everything)
-            const submittedKey = 'submittedAccountIds';
-            const activeKey = 'activeAccountIds';
-            localStorage.setItem(submittedKey, JSON.stringify([]));
-            localStorage.setItem(activeKey, JSON.stringify([]));
+        // Reset both account and subscription IDs
+            const submittedAccountKey = 'submittedAccountIds';
+            const activeAccountKey = 'activeAccountIds';
+            const submittedSubscriptionKey = 'submittedSubscriptionIds';
+            const activeSubscriptionKey = 'activeSubscriptionIds';
             
-            // Reset the form and assign a new Account ID
+            localStorage.setItem(submittedAccountKey, JSON.stringify([]));
+            localStorage.setItem(activeAccountKey, JSON.stringify([]));
+            localStorage.setItem(submittedSubscriptionKey, JSON.stringify([]));
+            localStorage.setItem(activeSubscriptionKey, JSON.stringify([]));
+            
+            // Reset the form and assign new IDs
             const newAccountId = getNextAccountId();
+            const newSubscriptionId = getNextSubscriptionId();
+            
             setAccounts([{
                 RunId: 10,
                 AccountId: newAccountId,
+                subscriptionPlans: [{
+                    SubscriptionId: newSubscriptionId,
+                    SubscriptionName: '',
+                    SubscriptionType: 'EVERGREEN',
+                    SubscriptionEffectiveDate: new Date(),
+                    SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
+                    SubscriptionMembers: []
+                }]
             }]);
+            
             addActiveAccountId(newAccountId);
+            addActiveSubscriptionId(newSubscriptionId);
             setActiveAccountIndex(0);
             setErrors({});
             setCopyAccountToBilling(false);
@@ -123,23 +181,35 @@ const SubscriptionForm: React.FC = () => {
         }
     };
 
-    // Initialize accounts with proper ID tracking - FIXED
+    // Update the initial accounts state to include subscription ID tracking (around line 140)
     const [accounts, setAccounts] = useState<Partial<SubscriptionData>[]>(() => {
-        // Reset active IDs first (in case there are any lingering from previous session)
-        const activeKey = 'activeAccountIds';
-        localStorage.setItem(activeKey, JSON.stringify([]));
+        // Reset active IDs first
+        const activeAccountKey = 'activeAccountIds';
+        const activeSubscriptionKey = 'activeSubscriptionIds';
+        localStorage.setItem(activeAccountKey, JSON.stringify([]));
+        localStorage.setItem(activeSubscriptionKey, JSON.stringify([]));
         
-        // Calculate the initial ID - now only based on submitted IDs
-        const submittedIds = getSubmittedAccountIds();
-        const initialAccountId = submittedIds.length + 1;
+        // Calculate the initial IDs
+        const submittedAccountIds = getSubmittedAccountIds();
+        const submittedSubscriptionIds = getSubmittedSubscriptionIds();
+        const initialAccountId = submittedAccountIds.length + 1;
+        const initialSubscriptionId = submittedSubscriptionIds.length + 1;
         
         // Add to active IDs immediately
-        const updatedActiveIds = [initialAccountId];
-        setActiveAccountIds(updatedActiveIds);
+        setActiveAccountIds([initialAccountId]);
+        setActiveSubscriptionIds([initialSubscriptionId]);
         
         return [{
             RunId: 10,
             AccountId: initialAccountId,
+            subscriptionPlans: [{
+                SubscriptionId: initialSubscriptionId,
+                SubscriptionName: '',
+                SubscriptionType: 'EVERGREEN',
+                SubscriptionEffectiveDate: new Date(),
+                SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
+                SubscriptionMembers: []
+            }]
         }];
     });
 
@@ -150,25 +220,41 @@ const SubscriptionForm: React.FC = () => {
 
     const deleteAccount = (index: number) => {
         if (accounts.length > 1) {
+
             // Remove the account from the array
             const remainingAccounts = accounts.filter((_, i) => i !== index);
             
-            // Reset active account IDs and reassign sequentially starting from the minimum allowed
-            const submittedCount = getSubmittedAccountIds().length;
-            const startingId = submittedCount + 1;
+            // Reset active IDs and reassign sequentially
+            const submittedAccountCount = getSubmittedAccountIds().length;
+            const submittedSubscriptionCount = getSubmittedSubscriptionIds().length;
+            const startingAccountId = submittedAccountCount + 1;
+            const startingSubscriptionId = submittedSubscriptionCount + 1;
             
-            // Reassign Account IDs sequentially
+            let currentSubscriptionId = startingSubscriptionId;
+            
+            // Reassign Account IDs and Subscription IDs sequentially
             const updatedAccounts = remainingAccounts.map((account, newIndex) => {
-                const newAccountId = startingId + newIndex;
+                const newAccountId = startingAccountId + newIndex;
+                const updatedPlans = (account.subscriptionPlans || []).map(plan => ({
+                    ...plan,
+                    SubscriptionId: currentSubscriptionId++
+                }));
+                
                 return {
                     ...account,
-                    AccountId: newAccountId
+                    AccountId: newAccountId,
+                    subscriptionPlans: updatedPlans
                 };
             });
             
-            // Update active account IDs list to match the new assignments
-            const newActiveIds = updatedAccounts.map(account => account.AccountId);
-            setActiveAccountIds(newActiveIds);
+            // Update active ID lists
+            const newActiveAccountIds = updatedAccounts.map(account => account.AccountId);
+            const newActiveSubscriptionIds = updatedAccounts.flatMap(account => 
+                (account.subscriptionPlans || []).map(plan => plan.SubscriptionId)
+            );
+            
+            setActiveAccountIds(newActiveAccountIds);
+            setActiveSubscriptionIds(newActiveSubscriptionIds);
             
             setAccounts(updatedAccounts);
             
@@ -182,20 +268,26 @@ const SubscriptionForm: React.FC = () => {
     };
 
     const addNewAccount = () => {
-        // Calculate the next ID without calling getNextAccountId (which might be called elsewhere)
-        const submittedIds = getSubmittedAccountIds();
-        const activeIds = getActiveAccountIds();
-        const allIds = [...new Set([...submittedIds, ...activeIds])];
-        const newId = allIds.length + 1;
+        const newAccountId = getNextAccountId();
+        const newSubscriptionId = getNextSubscriptionId();
         
         const newAccount: Partial<SubscriptionData> = {
             RunId: 10,
-            AccountId: newId,
+            AccountId: newAccountId,
+            subscriptionPlans: [{
+                SubscriptionId: newSubscriptionId,
+                SubscriptionName: '',
+                SubscriptionType: 'EVERGREEN',
+                SubscriptionEffectiveDate: new Date(),
+                SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
+                SubscriptionMembers: []
+            }]
         };
         
-        addActiveAccountId(newId);
+        addActiveAccountId(newAccountId);
+        addActiveSubscriptionId(newSubscriptionId);
         setAccounts(prev => [...prev, newAccount]);
-        setActiveAccountIndex(accounts.length); // Switch to new account
+        setActiveAccountIndex(accounts.length);
     };
 
     const removeMember = (id: string) => {
@@ -212,15 +304,37 @@ const SubscriptionForm: React.FC = () => {
         ));
     };
     const removePlan = (id: number) => {
-        setAccounts(prev => prev.map((account, idx) => 
-            idx === activeAccountIndex
-                ? {
-                    ...account,
-                    subscriptionPlans: (account.subscriptionPlans || []).filter((p: any) => p.SubscriptionId !== id)
-                }
-                : account
-        ));
-    }
+        setAccounts(prev => prev.map((account, idx) => {
+            if (idx !== activeAccountIndex) return account;
+            
+            // Remove the plan with the specified ID
+            const remainingPlans = (account.subscriptionPlans || []).filter((p: any) => p.SubscriptionId !== id);
+            
+            // Get the current submitted subscription count to determine starting ID
+            const submittedSubscriptionCount = getSubmittedSubscriptionIds().length;
+            const startingSubscriptionId = submittedSubscriptionCount + 1;
+            
+            // Reassign subscription IDs sequentially starting from the next available ID
+            const updatedPlans = remainingPlans.map((plan, index) => ({
+                ...plan,
+                SubscriptionId: startingSubscriptionId + index,
+                // Also update the SubscriptionId for all members in this plan
+                SubscriptionMembers: (plan.SubscriptionMembers || []).map(member => ({
+                    ...member,
+                    SubscriptionId: startingSubscriptionId + index
+                }))
+            }));
+            
+            // Update the active subscription IDs list
+            const newActiveSubscriptionIds = updatedPlans.map(plan => plan.SubscriptionId);
+            setActiveSubscriptionIds(newActiveSubscriptionIds);
+            
+            return {
+                ...account,
+                subscriptionPlans: updatedPlans
+            };
+        }));
+    };
 
     // --- TOP OF FORM: Data Template Download & Import UI ---
     const [importError, setImportError] = useState<string | null>(null);
@@ -848,12 +962,16 @@ const SubscriptionForm: React.FC = () => {
                 // Export all accounts at once
                 const filename = exportAllAccountsToExcel();
                 alert(`Successfully exported ${accounts.length} account(s) to ${filename}!`);
-                // Add active account IDs to submitted IDs
-                const activeIds = getActiveAccountIds();
-                addToSubmittedAccountIds(activeIds);
                 
-                // Clear active account IDs since they're now submitted
+                // Add active IDs to submitted IDs
+                const activeAccountIds = getActiveAccountIds();
+                const activeSubscriptionIds = getActiveSubscriptionIds();
+                addToSubmittedAccountIds(activeAccountIds);
+                addToSubmittedSubscriptionIds(activeSubscriptionIds);
+                
+                // Clear active IDs since they're now submitted
                 setActiveAccountIds([]);
+                setActiveSubscriptionIds([]);
                 window.location.reload();
             } catch (error) {
                 console.error('Error during form submission:', error);
@@ -1258,7 +1376,9 @@ const SubscriptionForm: React.FC = () => {
                     };
                     const useBilling = (get('use account address as billing address? (y/n)') || '').toString().toUpperCase().startsWith('Y');
                     const newId = getNextAccountId();
+                    const newSubscriptionId = getNextSubscriptionId();
                     addActiveAccountId(newId); // Add to active tracking list
+                    addActiveSubscriptionId(newSubscriptionId);
                     return {
                         RunId: 10,
                         AccountId: newId,
@@ -1287,14 +1407,14 @@ const SubscriptionForm: React.FC = () => {
                         AccountBillToPostalCode: useBilling ? get('zipcode') || '' : '',
                         subscriptionPlans: [
                             {
-                                SubscriptionId: 1,
+                                SubscriptionId: newSubscriptionId,
                                 SubscriptionName: `${get('firstname') || ''} ${get('lastname') || ''}` || ' ',
                                 SubscriptionType: 'EVERGREEN',
                                 SubscriptionEffectiveDate: new Date(),
                                 SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
                                 SubscriptionMembers: [
                                     {
-                                        SubscriptionId: 1,
+                                        SubscriptionId: newSubscriptionId,
                                         SubscriptionMemberId: 1,
                                         SubscriptionMemberFirstName: get('firstname') || '',
                                         SubscriptionMemberLastName: get('lastname') || '',
@@ -1935,25 +2055,24 @@ const SubscriptionForm: React.FC = () => {
                                 onClick={() => {
                                     const now = new Date();
                                     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                                    const newSubscriptionId = getNextSubscriptionId();
+                                    
                                     setAccounts(prev => prev.map((account, idx) => {
                                         if (idx !== activeAccountIndex) return account;
-                                        // Find the max SubscriptionId in this account's plans
-                                        const maxId = (account.subscriptionPlans || []).reduce((max, p) => Math.max(max, Number(p.SubscriptionId) || 0), 0);
-                                        const nextId = maxId + 1;
-
+                                        
                                         // Find the max SubscriptionMemberId across ALL plans and members
                                         const allMembers = (account.subscriptionPlans || []).flatMap(plan => plan.SubscriptionMembers || []);
                                         const maxMemberId = allMembers.reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
-                                        const nextMemberId = maxMemberId + 1;                                   
+                                        const nextMemberId = maxMemberId + 1;
 
                                         const newPlan: SubscriptionPlan = {
-                                            SubscriptionId: nextId,
+                                            SubscriptionId: newSubscriptionId,
                                             SubscriptionName: `${currentAccount.AccountFirstName || ''} ${currentAccount.AccountLastName || ''}` || ' ',
                                             SubscriptionType: 'EVERGREEN',
                                             SubscriptionEffectiveDate: firstOfMonth,
                                             SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
                                             SubscriptionMembers: [{
-                                                SubscriptionId: nextId,
+                                                SubscriptionId: newSubscriptionId,
                                                 SubscriptionMemberId: nextMemberId,
                                                 SubscriptionMemberFirstName: currentAccount.AccountFirstName || '',
                                                 SubscriptionMemberLastName: currentAccount.AccountLastName || '',
@@ -1965,6 +2084,9 @@ const SubscriptionForm: React.FC = () => {
                                                 vehicles: []
                                             }]
                                         }
+                                        
+                                        addActiveSubscriptionId(newSubscriptionId);
+                                        
                                         return {
                                             ...account,
                                             subscriptionPlans: [
