@@ -1037,7 +1037,7 @@ const SubscriptionForm: React.FC = () => {
     };
 
     const PARKER_TEMPLATE_HEADERS = [
-        'first name', 'last name', 'email', 'phone', 'rate plan name',
+        'first name', 'last name', 'email', 'phone', 'rate plan name', 'subscription plan id',
         'access code1', 'access code type1', 'access code2', 'access code type2', 'access code3', 'access code type3',
         'assigned unit1',
         'vehicle1name', 'vehicle1platenumber', 'vehicle1state', 'vehicle1color', 'vehicle1make', 'vehicle1model',
@@ -1053,7 +1053,6 @@ const SubscriptionForm: React.FC = () => {
         XLSX.writeFile(wb, 'ParkerDataTemplate.xlsx');
     };
 
-    // Import Account Data
     const handleImportParkerData = (e: React.ChangeEvent<HTMLInputElement>) => {
         setImportError(null);
         setImportSuccess(null);
@@ -1078,206 +1077,118 @@ const SubscriptionForm: React.FC = () => {
                 if (rows.length < 2) throw new Error('No data found in file.');
                 const header = (rows[0] as any[]).map((h: any) => (h || '').toString().trim().toLowerCase());
                 console.log('Header:', header);
+                
                 // Validate required columns
                 const requiredCols = [
-                    'first name', 'last name', 'email', 'rate plan name',
+                    'first name', 'last name', 'email', 'rate plan name', 'subscription plan id',
                     'vehicle1name', 'vehicle1platenumber', 'vehicle1state', 'vehicle1color', 'vehicle1make', 'vehicle1model',
                 ];
                 for (const col of requiredCols) {
                     if (!header.includes(col)) throw new Error(`Missing required column: ${col}`);
                 }
 
-                // Map each data row to a member object
-                const newMembers: memberInfo[] = rows.slice(1).map((row: any[]) => {
-                    const get = (col: string) => {
-                        const idx = header.indexOf(col.toLowerCase());
-                        return idx !== -1 ? (row[idx] || '').toString().trim() : '';
-                    };
-                    return {
-                        SubscriptionId: 1,
-                        SubscriptionMemberId: 1,
-                        SubscriptionMemberFirstName: get('First Name') || '',
-                        SubscriptionMemberLastName: get('Last Name') || '',
-                        SubscriptionMemberEmail: get('Email') || '',
-                        SubscriptionMemberPhone: get('Phone') || '',
-                        SubscriptionMemberRateplanName: get('Rate Plan Name') || 'Default Plan',
-                        accessCodes: [
-                            { id: '1', code: get('Access Code1') || '', type: get('Access Code Type1') || '' },
-                            { id: '2', code: get('Access Code2') || '', type: get('Access Code Type2') || '' },
-                            { id: '3', code: get('Access Code3') || '', type: get('Access Code Type3') || '' }
-                        ].filter(code => code.code || code.type),
-                        assignedUnits: [
-                            { id: '1', unit: get('Assigned Unit1') || '' }
-                        ].filter(unit => unit.unit),
-                        vehicles: [
-                            { id: '1', name: get('Vehicle1Name') || '', plateNumber: get('Vehicle1PlateNumber') || '', state: get('Vehicle1State') || '', color: get('Vehicle1Color') || '', make: get('Vehicle1Make') || '', model: get('Vehicle1Model') || '' },
-                            { id: '2', name: get('Vehicle2Name') || '', plateNumber: get('Vehicle2PlateNumber') || '', state: get('Vehicle2State') || '', color: get('Vehicle2Color') || '', make: get('Vehicle2Make') || '', model: get('Vehicle2Model') || '' },
-                            { id: '3', name: get('Vehicle3Name') || '', plateNumber: get('Vehicle3PlateNumber') || '', state: get('Vehicle3State') || '', color: get('Vehicle3Color') || '', make: get('Vehicle3Make') || '', model: get('Vehicle3Model') || '' }
-                        ].filter(vehicle => vehicle.name || vehicle.plateNumber || vehicle.state || vehicle.color || vehicle.make || vehicle.model),
-                        createdAt: Date.now()
-                    };
-                });
-                // Inside handleImportParkerData, after parsing newMembers:
-                setAccounts(prev => prev.map((account, idx) => {
-                    if (idx !== activeAccountIndex) return account;
-
-                    // Find or create the first subscription plan
-                    let plans = account.subscriptionPlans || [];
-                    let firstPlan: SubscriptionPlan;
-                    let maxMemberId = plans.flatMap(plan => plan.SubscriptionMembers || []).reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
-
-                    if (plans.length === 0) {
-                        // Create a new plan if none exist
-                        firstPlan = {
-                            SubscriptionId: 1,
-                            SubscriptionName: 'Imported Plan',
-                            SubscriptionType: 'EVERGREEN',
-                            SubscriptionEffectiveDate: new Date(),
-                            SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
-                            SubscriptionMembers: []
-                        };
-                        plans = [firstPlan];
-                    } else {
-                        firstPlan = plans[0];
+                const validPlanIds = (currentAccount.subscriptionPlans || []).map(plan => String(plan.SubscriptionId));
+                
+                // Validate each row's Subscription Plan ID
+                const invalidRows: { row: number; value: string }[] = [];
+                rows.slice(1).forEach((row: any[], i: number) => {
+                    const idx = header.indexOf('subscription plan id');
+                    const planIdValue = idx !== -1 ? (row[idx] || '').toString().trim() : '';
+                    if (!validPlanIds.includes(planIdValue)) {
+                        invalidRows.push({ row: i + 2, value: planIdValue }); // +2 for Excel-like row number (header is row 1)
                     }
+                });
 
-                    // Add all imported members to the first plan
-                    const importedMembers: memberInfo[] = newMembers.map(member => {
-                        maxMemberId += 1;
+                if (invalidRows.length > 0) {
+                    setImportError(
+                        `Import failed: The following rows have invalid Subscription Plan IDs:\n` +
+                        invalidRows.map(r => `Row ${r.row}: "${r.value}"`).join('\n') +
+                        `\nValid plan IDs are: ${validPlanIds.join(', ')}`
+                    );
+                    setIsParkerImporting(false);
+                    return;
+                } else {
+
+                    // Map each data row to a member object
+                    const newMembers: memberInfo[] = rows.slice(1).map((row: any[]) => {
+                        const get = (col: string) => {
+                            const idx = header.indexOf(col.toLowerCase());
+                            return idx !== -1 ? (row[idx] || '').toString().trim() : '';
+                        };
                         return {
-                            SubscriptionId: firstPlan.SubscriptionId,
-                            SubscriptionMemberId: maxMemberId,
-                            SubscriptionMemberFirstName: member.SubscriptionMemberFirstName,
-                            SubscriptionMemberLastName: member.SubscriptionMemberLastName,
-                            SubscriptionMemberEmail: member.SubscriptionMemberEmail,
-                            SubscriptionMemberPhone: member.SubscriptionMemberPhone,
-                            SubscriptionMemberRateplanName: member.SubscriptionMemberRateplanName,
-                            accessCodes: member.accessCodes,
-                            assignedUnits: member.assignedUnits,
-                            vehicles: member.vehicles,
-                            createdAt: member.createdAt
+                            SubscriptionId: Number(get('subscription plan id')), // Convert to number for proper matching
+                            SubscriptionMemberId: 1, // Will be reassigned below
+                            SubscriptionMemberFirstName: get('first name') || '',
+                            SubscriptionMemberLastName: get('last name') || '',
+                            SubscriptionMemberEmail: get('email') || '',
+                            SubscriptionMemberPhone: get('phone') || '',
+                            SubscriptionMemberRateplanName: get('rate plan name') || 'Default Plan',
+                            accessCodes: [
+                                { id: '1', code: get('access code1') || '', type: get('access code type1') || '' },
+                                { id: '2', code: get('access code2') || '', type: get('access code type2') || '' },
+                                { id: '3', code: get('access code3') || '', type: get('access code type3') || '' }
+                            ].filter(code => code.code || code.type),
+                            assignedUnits: [
+                                { id: '1', unit: get('assigned unit1') || '' }
+                            ].filter(unit => unit.unit),
+                            vehicles: [
+                                { id: '1', name: get('vehicle1name') || '', plateNumber: get('vehicle1platenumber') || '', state: get('vehicle1state') || '', color: get('vehicle1color') || '', make: get('vehicle1make') || '', model: get('vehicle1model') || '' },
+                                { id: '2', name: get('vehicle2name') || '', plateNumber: get('vehicle2platenumber') || '', state: get('vehicle2state') || '', color: get('vehicle2color') || '', make: get('vehicle2make') || '', model: get('vehicle2model') || '' },
+                                { id: '3', name: get('vehicle3name') || '', plateNumber: get('vehicle3platenumber') || '', state: get('vehicle3state') || '', color: get('vehicle3color') || '', make: get('vehicle3make') || '', model: get('vehicle3model') || '' }
+                            ].filter(vehicle => vehicle.name || vehicle.plateNumber || vehicle.state || vehicle.color || vehicle.make || vehicle.model),
+                            createdAt: Date.now()
                         };
                     });
 
-                    // Update the first plan's members
-                    const updatedPlans: SubscriptionPlan[] = [
-                        {
-                            SubscriptionId: firstPlan.SubscriptionId,
-                            SubscriptionName: firstPlan.SubscriptionName,
-                            SubscriptionType: firstPlan.SubscriptionType,
-                            SubscriptionEffectiveDate: firstPlan.SubscriptionEffectiveDate,
-                            SubscriptionInvoiceTemplate: firstPlan.SubscriptionInvoiceTemplate,
-                            SubscriptionMembers: [
-                                ...(firstPlan.SubscriptionMembers || []),
-                                ...importedMembers
-                            ]
-                        },
-                        ...plans.slice(1)
-                    ];
+                    // Add imported members to existing plans (no new plan creation)
+                    setAccounts(prev => prev.map((account, idx) => {
+                        if (idx !== activeAccountIndex) return account;
 
-                    return {
-                        ...account,
-                        subscriptionPlans: updatedPlans
-                    };
-                }));
-                {/*
-                setAccounts(prev => prev.map((account, idx) => {
-                    if (idx !== activeAccountIndex) return account;
+                        // Get current max member ID across all plans
+                        let maxMemberId = (account.subscriptionPlans || [])
+                            .flatMap(plan => plan.SubscriptionMembers || [])
+                            .reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
 
-                    // Group imported members by Rate Plan Name
-                    const groupedByRatePlan: { [ratePlan: string]: Partial<memberInfo>[] } = {};
-                    console.log('New Members:', newMembers);
-                    console.log('Grouped By Rate Plan:', groupedByRatePlan);
-                    newMembers.forEach((member) => {
-                        const ratePlan = member.SubscriptionMemberRateplanName || ' ';
-                        if (!groupedByRatePlan[ratePlan]) {
-                            groupedByRatePlan[ratePlan] = [];
-                        }
-                        groupedByRatePlan[ratePlan].push(member);
-                    });
-
-                    // Find the max SubscriptionId and SubscriptionMemberId to increment
-                    const existingPlans = account.subscriptionPlans || [];
-                    let maxPlanId = existingPlans.reduce((max, p) => Math.max(max, Number(p.SubscriptionId) || 0), 0);
-                    let maxMemberId = existingPlans.flatMap(plan => plan.SubscriptionMembers || []).reduce((max, m) => Math.max(max, m.SubscriptionMemberId || 0), 0);
-
-                    // Process each rate plan group
-                    const updatedPlans = [...existingPlans];
-                    const newPlans: any[] = [];
-                    Object.entries(groupedByRatePlan).forEach(([ratePlan, members]) => {
-                        // Check if a plan with this name already exists
-                        const existingPlanIndex = updatedPlans.findIndex(p => p.SubscriptionName === ratePlan);
-                        if (existingPlanIndex !== -1) {
-                            // Add members to existing plan
-                            console.log('Adding members to existing plan:', ratePlan);
-                            console.log('Members:', members);  
-                            const existingPlan = updatedPlans[existingPlanIndex];
-                            const newMembers = members.map(member => {
-                                maxMemberId += 1;
-                                return {
-                                    SubscriptionId: existingPlan.SubscriptionId,
-                                    SubscriptionMemberId: maxMemberId,
-                                    SubscriptionMemberFirstName: member.SubscriptionMemberFirstName || '',
-                                    SubscriptionMemberLastName: member.SubscriptionMemberLastName || '',
-                                    SubscriptionMemberEmail: member.SubscriptionMemberEmail || '',
-                                    SubscriptionMemberPhone: member.SubscriptionMemberPhone || '',
-                                    SubscriptionMemberRateplanName: member.SubscriptionMemberRateplanName || '',
-                                    accessCodes: member.accessCodes || [],
-                                    assignedUnits: member.assignedUnits || [],
-                                    vehicles: member.vehicles || [],
-                                    createdAt: Date.now()
-                                };
-                            });
+                        // Update existing plans by adding members to their respective plans
+                        const updatedPlans: SubscriptionPlan[] = (account.subscriptionPlans || []).map(plan => {
+                            // Find members that belong to this plan
+                            const membersForThisPlan = newMembers.filter(member => member.SubscriptionId === plan.SubscriptionId);
                             
-                            updatedPlans[existingPlanIndex] = {
-                                ...existingPlan,
-                                SubscriptionMembers: [
-                                    ...(existingPlan.SubscriptionMembers || []),
-                                    ...newMembers
-                                ]
-                            };
-                        } else {
-                            // Create new plan
-                            maxPlanId += 1;
-                            const currentPlanId = maxPlanId;
-                            newPlans.push({
-                                SubscriptionId: currentPlanId,
-                                SubscriptionName: ratePlan,
-                                SubscriptionType: 'EVERGREEN',
-                                SubscriptionEffectiveDate: new Date(),
-                                SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
-                                SubscriptionMembers: members.map(member => {
+                            if (membersForThisPlan.length > 0) {
+                                // Add these members to this plan with proper member IDs
+                                const newMembersWithIds: memberInfo[] = membersForThisPlan.map(member => {
                                     maxMemberId += 1;
                                     return {
-                                        SubscriptionId: currentPlanId,
+                                        ...member,
                                         SubscriptionMemberId: maxMemberId,
-                                        SubscriptionMemberFirstName: member.SubscriptionMemberFirstName || '',
-                                        SubscriptionMemberLastName: member.SubscriptionMemberLastName || '',
-                                        SubscriptionMemberEmail: member.SubscriptionMemberEmail || '',
-                                        SubscriptionMemberPhone: member.SubscriptionMemberPhone || '',
-                                        SubscriptionMemberRateplanName: member.SubscriptionMemberRateplanName || '',
-                                        accessCodes: member.accessCodes || [],
-                                        assignedUnits: member.assignedUnits || [],
-                                        vehicles: member.vehicles || []
+                                        SubscriptionId: plan.SubscriptionId // Ensure it matches the plan
                                     };
-                                })
-                            });
-                        }
-                    });
+                                });
 
-                    return {
-                        ...account,
-                        subscriptionPlans: [
-                            ...updatedPlans,
-                            ...newPlans
-                        ]
-                    };
-                }));
-                */}
-                setImportSuccess('Parker data imported successfully!');
-                window.scrollTo({ top: 200, behavior: 'smooth' });
+                                return {
+                                    ...plan,
+                                    SubscriptionMembers: [
+                                        ...(plan.SubscriptionMembers || []),
+                                        ...newMembersWithIds
+                                    ]
+                                };
+                            } else {
+                                // No new members for this plan, return as-is
+                                return plan;
+                            }
+                        });
+
+                        return {
+                            ...account,
+                            subscriptionPlans: updatedPlans
+                        };
+                    }));
+
+                    setImportSuccess(`Successfully imported ${newMembers.length} parker(s) to existing subscription plans!`);
+                    window.scrollTo({ top: 200, behavior: 'smooth' });
+                }
             } catch (err: any) {
-                setImportError(err.message || 'Failed to import account data.');
+                setImportError(err.message || 'Failed to import parker data.');
             } finally {
                 setIsParkerImporting(false);
             }
@@ -2521,7 +2432,7 @@ const SubscriptionForm: React.FC = () => {
             <InputLabel id={`member-plan-select-label-${member.SubscriptionMemberId}`}>Subscription Plan</InputLabel>
             <Select
             labelId={`member-plan-select-label-${member.SubscriptionMemberId}`}
-            value={member.SubscriptionId}
+            value={member.SubscriptionId || (currentAccount.subscriptionPlans?.[0]?.SubscriptionId ?? '')}
             label="Subscription Plan"
             onChange={e => {
                 const newPlanId = Number(e.target.value);
