@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SubscriptionData, AccessCode, AssignedUnit, Vehicle, memberInfo } from '../types/subscription';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
   Box, Button, Typography, TextField, Select, MenuItem, FormControl, InputLabel, FormHelperText, Paper,
@@ -1427,27 +1428,106 @@ const SubscriptionForm: React.FC = () => {
         reader.readAsBinaryString(file);
     };
     const ACCOUNT_TEMPLATE_HEADERS = [
-    'name',
-    'firstname',
-    'lastname',
-    'email',
-    'phone',
-    'address 1',
-    'address 2',
-    'city',
-    'state',
-    'country',
-    'zipcode',
-    'Account Type',
-    'Use account address as billing address? (Y/N)',
+        'name',
+        'firstname',
+        'lastname',
+        'email',
+        'phone',
+        'address 1',
+        'address 2',
+        'city',
+        'state',
+        'country',
+        'zipcode',
+        'Account Type',
+        'Use account address as billing address? (Y/N)',
     ];
 
-    // Download Data Template
-    const handleAccountDownloadTemplate = () => {
-        const ws = XLSX.utils.aoa_to_sheet([ACCOUNT_TEMPLATE_HEADERS]);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'AccountTemplate');
-        XLSX.writeFile(wb, 'AccountDataTemplate.xlsx');
+    // Download Account Data Template with working dropdown validation
+    const handleAccountDownloadTemplate = async () => {
+        try {
+            // Create a new workbook
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('accountTemplate');
+
+            // Add headers
+            const headerRow = worksheet.addRow(ACCOUNT_TEMPLATE_HEADERS);
+            headerRow.font = { bold: true };
+
+            // Find the Account Type column index
+            const accountTypeIndex = ACCOUNT_TEMPLATE_HEADERS.findIndex(header => 
+                header.toLowerCase().includes('account type')
+            );
+
+            if (accountTypeIndex !== -1) {
+                // Set column width for Account Type column
+                const columnLetter = String.fromCharCode(65 + accountTypeIndex); // Convert to Excel column letter (A, B, C, etc.)
+                worksheet.getColumn(accountTypeIndex + 1).width = 20;
+
+                // Add data validation for Account Type column (rows 2-1000)
+                for (let row = 2; row <= 1000; row++) {
+                    const cell = worksheet.getCell(`${columnLetter}${row}`);
+                    cell.dataValidation = {
+                        type: 'list',
+                        allowBlank: false,
+                        formulae: ['"Corporate,Individual"'],
+                        showErrorMessage: true,
+                        errorStyle: 'error',
+                        errorTitle: 'Invalid Account Type',
+                        error: 'Please select either Corporate or Individual from the dropdown.',
+                        showInputMessage: true,
+                        promptTitle: 'Account Type',
+                        prompt: 'Select Corporate or Individual'
+                    };
+                }
+
+                // Add a sample row with dropdown to show users how it works
+                const sampleRow = worksheet.addRow([
+                    'John Doe', // name
+                    'John', // firstname
+                    'Doe', // lastname
+                    'john.doe@example.com', // email
+                    '(555)123-4567', // phone
+                    '123 Main St', // address 1
+                    'Apt 1', // address 2
+                    'New York', // city
+                    'NY', // state
+                    'US', // country
+                    '10001', // zipcode
+                    '', // Account Type - leave empty to show dropdown
+                    'Y' // Use account address as billing address
+                ]);
+                sampleRow.font = { italic: true, color: { argb: 'FF666666' } };
+
+                // Apply validation to the sample row's Account Type cell too
+                const sampleAccountTypeCell = worksheet.getCell(`${columnLetter}3`);
+                sampleAccountTypeCell.dataValidation = {
+                    type: 'list',
+                    allowBlank: false,
+                    formulae: ['"Corporate,Individual"'],
+                    showErrorMessage: true,
+                    errorStyle: 'error',
+                    errorTitle: 'Invalid Account Type',
+                    error: 'Please select either Corporate or Individual from the dropdown.',
+                    showInputMessage: true,
+                    promptTitle: 'Account Type',
+                    prompt: 'Select Corporate or Individual'
+                };
+            }
+
+            // Write the file
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'AccountDataTemplate.xlsx';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error creating Excel template:', error);
+            alert('Error creating template file. Please try again.');
+        }
     };
 
     // Import Account Data
