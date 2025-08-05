@@ -1326,6 +1326,7 @@ const SubscriptionForm: React.FC = () => {
     'state',
     'country',
     'zipcode',
+    'Account Type',
     'Use account address as billing address? (Y/N)',
     ];
 
@@ -1392,7 +1393,7 @@ const SubscriptionForm: React.FC = () => {
                         AccountState: get('state') || '',
                         AccountCountry: get('country') || '',
                         AccountPostalCode: get('zipcode') || '',
-                        AccountType: '', // or set from template if present
+                        AccountType: get('account type') || '', // or set from template if present
 
                         AccountBillToName: useBilling ? `${get('firstname') || ''} ${get('lastname') || ''}`.trim() : '',
                         AccountBillToFirstName: useBilling ? get('firstname') || '' : '',
