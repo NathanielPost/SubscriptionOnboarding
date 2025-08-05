@@ -11,6 +11,8 @@ import {
 import InfoIcon from '@mui/icons-material/Info';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
 import type { SubscriptionPlan } from '../types/subscription'; // Adjust the path as needed
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
@@ -49,10 +51,14 @@ const companyTheme = createTheme({
 });
 
 const SubscriptionForm: React.FC = () => {
-    useEffect(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        setActiveAccountIds([getActiveAccountIds()[0]]);
-    }, []);
+
+        // Submitted Subscription IDs (permanent - never reset except manually)
+    const getSubmittedSubscriptionIds = (): number[] => {
+        const key = 'submittedSubscriptionIds';
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : [];
+    };
+
 
     // Submitted Account IDs (permanent - never reset except manually)
     const getSubmittedAccountIds = (): number[] => {
@@ -60,6 +66,65 @@ const SubscriptionForm: React.FC = () => {
         const stored = localStorage.getItem(key);
         return stored ? JSON.parse(stored) : [];
     };
+
+    const setActiveAccountIds = (accountIds: number[]) => {
+        const key = 'activeAccountIds';
+        localStorage.setItem(key, JSON.stringify(accountIds));
+    };
+    
+    const setActiveSubscriptionIds = (subscriptionIds: number[]) => {
+        const key = 'activeSubscriptionIds';
+        localStorage.setItem(key, JSON.stringify(subscriptionIds));
+    };
+
+
+        // Update the initial accounts state to include subscription ID tracking (around line 140)
+    const [accounts, setAccounts] = useState<Partial<SubscriptionData>[]>(() => {
+        // Reset active IDs first
+        const activeAccountKey = 'activeAccountIds';
+        const activeSubscriptionKey = 'activeSubscriptionIds';
+        localStorage.setItem(activeAccountKey, JSON.stringify([]));
+        localStorage.setItem(activeSubscriptionKey, JSON.stringify([]));
+        
+        // Calculate the initial IDs
+        const submittedAccountIds = getSubmittedAccountIds();
+        const submittedSubscriptionIds = getSubmittedSubscriptionIds();
+        const initialAccountId = submittedAccountIds.length + 1;
+        const initialSubscriptionId = submittedSubscriptionIds.length + 1;
+        
+        // Add to active IDs immediately
+        setActiveAccountIds([initialAccountId]);
+        setActiveSubscriptionIds([initialSubscriptionId]);
+        
+        return [{
+            RunId: 10,
+            AccountId: initialAccountId,
+            subscriptionPlans: [{
+                SubscriptionId: initialSubscriptionId,
+                SubscriptionName: '',
+                SubscriptionType: 'EVERGREEN',
+                SubscriptionEffectiveDate: new Date(),
+                SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
+                SubscriptionMembers: []
+            }]
+        }];
+    });
+
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setActiveAccountIds([getActiveAccountIds()[0]]);
+    }, []);
+
+    // Update validation status whenever accounts change
+    useEffect(() => {
+        const newValidationStatus: { [accountIndex: number]: boolean } = {};
+        accounts.forEach((account, index) => {
+            newValidationStatus[index] = isAccountValid(account, index);
+        });
+        setAccountValidationStatus(newValidationStatus);
+    }, [accounts]);
+
+    
 
     const addToSubmittedAccountIds = (accountIds: number[]) => {
         const key = 'submittedAccountIds';
@@ -75,11 +140,7 @@ const SubscriptionForm: React.FC = () => {
         return stored ? JSON.parse(stored) : [];
     };
 
-    const setActiveAccountIds = (accountIds: number[]) => {
-        const key = 'activeAccountIds';
-        localStorage.setItem(key, JSON.stringify(accountIds));
-    };
-
+    
     const getNextAccountId = (): number => {
         const submittedIds = getSubmittedAccountIds();
         const activeIds = getActiveAccountIds();
@@ -95,12 +156,7 @@ const SubscriptionForm: React.FC = () => {
         }
     };
 
-    // Submitted Subscription IDs (permanent - never reset except manually)
-    const getSubmittedSubscriptionIds = (): number[] => {
-        const key = 'submittedSubscriptionIds';
-        const stored = localStorage.getItem(key);
-        return stored ? JSON.parse(stored) : [];
-    };
+
 
     const addToSubmittedSubscriptionIds = (subscriptionIds: number[]) => {
         const key = 'submittedSubscriptionIds';
@@ -116,10 +172,7 @@ const SubscriptionForm: React.FC = () => {
         return stored ? JSON.parse(stored) : [];
     };
 
-    const setActiveSubscriptionIds = (subscriptionIds: number[]) => {
-        const key = 'activeSubscriptionIds';
-        localStorage.setItem(key, JSON.stringify(subscriptionIds));
-    };
+
 
     const getNextSubscriptionId = (): number => {
         const submittedIds = getSubmittedSubscriptionIds();
@@ -181,38 +234,6 @@ const SubscriptionForm: React.FC = () => {
         }
     };
 
-    // Update the initial accounts state to include subscription ID tracking (around line 140)
-    const [accounts, setAccounts] = useState<Partial<SubscriptionData>[]>(() => {
-        // Reset active IDs first
-        const activeAccountKey = 'activeAccountIds';
-        const activeSubscriptionKey = 'activeSubscriptionIds';
-        localStorage.setItem(activeAccountKey, JSON.stringify([]));
-        localStorage.setItem(activeSubscriptionKey, JSON.stringify([]));
-        
-        // Calculate the initial IDs
-        const submittedAccountIds = getSubmittedAccountIds();
-        const submittedSubscriptionIds = getSubmittedSubscriptionIds();
-        const initialAccountId = submittedAccountIds.length + 1;
-        const initialSubscriptionId = submittedSubscriptionIds.length + 1;
-        
-        // Add to active IDs immediately
-        setActiveAccountIds([initialAccountId]);
-        setActiveSubscriptionIds([initialSubscriptionId]);
-        
-        return [{
-            RunId: 10,
-            AccountId: initialAccountId,
-            subscriptionPlans: [{
-                SubscriptionId: initialSubscriptionId,
-                SubscriptionName: '',
-                SubscriptionType: 'EVERGREEN',
-                SubscriptionEffectiveDate: new Date(),
-                SubscriptionInvoiceTemplate: 'LAZ_STANDARD',
-                SubscriptionMembers: []
-            }]
-        }];
-    });
-
     const [activeAccountIndex, setActiveAccountIndex] = useState(0);
     const currentAccount = accounts[activeAccountIndex] || {};
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -264,6 +285,13 @@ const SubscriptionForm: React.FC = () => {
             } else if (activeAccountIndex > index) {
                 setActiveAccountIndex(activeAccountIndex - 1);
             }
+            
+            // Update validation status for all remaining accounts
+            const newValidationStatus: { [accountIndex: number]: boolean } = {};
+            updatedAccounts.forEach((account, idx) => {
+                newValidationStatus[idx] = isAccountValid(account, idx);
+            });
+            setAccountValidationStatus(newValidationStatus);
         }
     };
 
@@ -287,7 +315,15 @@ const SubscriptionForm: React.FC = () => {
         addActiveAccountId(newAccountId);
         addActiveSubscriptionId(newSubscriptionId);
         setAccounts(prev => [...prev, newAccount]);
-        setActiveAccountIndex(accounts.length);
+        const newIndex = accounts.length;
+        setActiveAccountIndex(newIndex);
+        
+        // Validate the new account immediately
+        const isValid = isAccountValid(newAccount as SubscriptionData, newIndex);
+        setAccountValidationStatus(prev => ({
+            ...prev,
+            [newIndex]: isValid
+        }));
     };
 
     const removeMember = (id: string) => {
@@ -576,31 +612,79 @@ const SubscriptionForm: React.FC = () => {
     };
 
     const validateAccount = (account: any, accountIndex: number): { [key: string]: string } => {
-    const errors: { [key: string]: string } = {};
-    
-    // Add your validation logic here
-    if (!account.AccountFirstName) {
-        errors[`account_${accountIndex}_firstName`] = 'First name is required';
-    }
-    
-    return errors;
-};
+        const errors: { [key: string]: string } = {};
+        
+        // Required account fields
+        if (!account.AccountFirstName || account.AccountFirstName.trim() === '') {
+            errors[`account_${accountIndex}_firstName`] = 'First name is required';
+        }
+        if (!account.AccountLastName || account.AccountLastName.trim() === '') {
+            errors[`account_${accountIndex}_lastName`] = 'Last name is required';
+        }
+        if (!account.AccountEmail || account.AccountEmail.trim() === '') {
+            errors[`account_${accountIndex}_email`] = 'Email is required';
+        }
+        if (!account.AccountState || account.AccountState.trim() === '') {
+            errors[`account_${accountIndex}_state`] = 'State is required';
+        }
+        if (!account.AccountCountry || account.AccountCountry.trim() === '') {
+            errors[`account_${accountIndex}_country`] = 'Country is required';
+        }
+        if (!account.AccountType || account.AccountType.trim() === '') {
+            errors[`account_${accountIndex}_type`] = 'Account type is required';
+        }
+        
+        // Required billing fields
+        if (!account.AccountBillToFirstName || account.AccountBillToFirstName.trim() === '') {
+            errors[`account_${accountIndex}_billToFirstName`] = 'Billing first name is required';
+        }
+        if (!account.AccountBillToLastName || account.AccountBillToLastName.trim() === '') {
+            errors[`account_${accountIndex}_billToLastName`] = 'Billing last name is required';
+        }
+        if (!account.AccountBillToEmail || account.AccountBillToEmail.trim() === '') {
+            errors[`account_${accountIndex}_billToEmail`] = 'Billing email is required';
+        }
+        if (!account.AccountBillToState || account.AccountBillToState.trim() === '') {
+            errors[`account_${accountIndex}_billToState`] = 'Billing state is required';
+        }
+        if (!account.AccountBillToCountry || account.AccountBillToCountry.trim() === '') {
+            errors[`account_${accountIndex}_billToCountry`] = 'Billing country is required';
+        }
+        
+        return errors;
+    };
+
+    // New function to check if an account is fully valid
+    const isAccountValid = (account: any, accountIndex: number): boolean => {
+        const accountErrors = validateAccount(account, accountIndex);
+        const planErrors = validateSubscriptionPlans(account.subscriptionPlans || []);
+        return Object.keys(accountErrors).length === 0 && Object.keys(planErrors).length === 0;
+    };
+
+    // State to track validation status of all accounts
+    const [accountValidationStatus, setAccountValidationStatus] = useState<{ [accountIndex: number]: boolean }>({});
 
     const validateAllAccounts = (): boolean => {
         let isValid = true;
         const newErrors: { [key: string]: string } = {};
+        const newValidationStatus: { [accountIndex: number]: boolean } = {};
         
         accounts.forEach((account, accountIndex) => {
             // Validate each account
             const accountErrors = validateAccount(account, accountIndex);
             Object.assign(newErrors, accountErrors);
             Object.assign(newErrors, validateSubscriptionPlans(account.subscriptionPlans || []));
+            
+            // Update validation status for this account
+            newValidationStatus[accountIndex] = isAccountValid(account, accountIndex);
+            
             if (Object.keys(accountErrors).length > 0) {
                 isValid = false;
             }
         });
         
         setErrors(newErrors);
+        setAccountValidationStatus(newValidationStatus);
         return isValid;
     };
 
@@ -767,6 +851,19 @@ const SubscriptionForm: React.FC = () => {
         // Update validation for active account
         const error = validateField(field, value);
         setErrors(prev => ({ ...prev, [`${activeAccountIndex}_${field}`]: error }));
+        
+        // Update validation status for the current account
+        setTimeout(() => {
+            const updatedAccount = accounts.find((_, idx) => idx === activeAccountIndex);
+            if (updatedAccount) {
+                const updatedAccountWithNewValue = { ...updatedAccount, [field]: value };
+                const isValid = isAccountValid(updatedAccountWithNewValue, activeAccountIndex);
+                setAccountValidationStatus(prev => ({
+                    ...prev,
+                    [activeAccountIndex]: isValid
+                }));
+            }
+        }, 0);
     };
 
     const validateForm = (): boolean => {
@@ -1048,6 +1145,13 @@ const SubscriptionForm: React.FC = () => {
                 }
             });
             setErrors(newErrors);
+            
+            // Update validation status after copying
+            const isValid = isAccountValid(updatedAccount, activeAccountIndex);
+            setAccountValidationStatus(prev => ({
+                ...prev,
+                [activeAccountIndex]: isValid
+            }));
         }
     };
 
@@ -1151,6 +1255,14 @@ const SubscriptionForm: React.FC = () => {
         
         // Clear all errors when autofilling
         setErrors({});
+        
+        // Update validation status after autofill
+        const isValid = isAccountValid(testData as SubscriptionData, activeAccountIndex);
+        setAccountValidationStatus(prev => ({
+            ...prev,
+            [activeAccountIndex]: isValid
+        }));
+        
         window.scrollTo({ top: 2098, behavior: 'smooth' });
     };
 
@@ -1436,6 +1548,12 @@ const SubscriptionForm: React.FC = () => {
                 // Add new accounts to state
                 setAccounts(prev => [...prev, ...newAccounts]);
                 setActiveAccountIndex(accounts.length); // Optionally switch to the first new account
+                
+                // Validate all accounts after import
+                setTimeout(() => {
+                    validateAllAccounts();
+                }, 100);
+                
                 setImportSuccess('Account data imported successfully!');
                 window.scrollTo({ top: 200, behavior: 'smooth' });
             } catch (err: any) {
@@ -1649,11 +1767,30 @@ const SubscriptionForm: React.FC = () => {
                                     labelId="account-select-label"
                                     value={activeAccountIndex}
                                     label="Select Account"
-                                    onChange={(e) => setActiveAccountIndex(Number(e.target.value))}
+                                    onChange={(e) => {
+                                        const newIndex = Number(e.target.value);
+                                        setActiveAccountIndex(newIndex);
+                                        // Validate the selected account
+                                        const isValid = isAccountValid(accounts[newIndex], newIndex);
+                                        setAccountValidationStatus(prev => ({
+                                            ...prev,
+                                            [newIndex]: isValid
+                                        }));
+                                    }}
                                 >
                                     {accounts.map((account, index) => (
                                         <MenuItem key={index} value={index}>
-                                            Account {account.AccountId}: {account.AccountFirstName || ''} {account.AccountLastName || ''}
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                                                <Box sx={{ flex: 1 }}>
+                                                    Account {account.AccountId}: {account.AccountFirstName || ''} {account.AccountLastName || ''}
+                                                </Box>
+                                                {accountValidationStatus[index] === true && (
+                                                    <CheckCircleIcon sx={{ color: 'green', fontSize: 20 }} />
+                                                )}
+                                                {accountValidationStatus[index] === false && (
+                                                    <ErrorIcon sx={{ color: 'red', fontSize: 20 }} />
+                                                )}
+                                            </Box>
                                         </MenuItem>
                                     ))}
                                 </Select>
