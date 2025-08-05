@@ -1640,21 +1640,44 @@ const SubscriptionForm: React.FC = () => {
                             </Button>
                         </Box>
                         
-                        {/* Account Tabs */}
-                        <Box sx={{ mt: 2 }}>
-                            {accounts.map((account, index) => (
-                                <Chip
-                                    label={`Account ${account.AccountId}: ${account.AccountFirstName || ''} ${account.AccountLastName || ''}`}
-                                    key={index}
-                                    variant={activeAccountIndex === index ? "filled" : "outlined"}
-                                    onClick={() => setActiveAccountIndex(index)}
-                                    onDelete={() => deleteAccount(index)}
-                                    color={activeAccountIndex === index ? "primary" : "default"}
-                                    sx={{ mr: 1, mb: 1 }}
-                                    size="medium"
-                                />
-
-                            ))}
+                        {/* Account Dropdown */}
+                        <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <FormControl sx={{ minWidth: 300 }}>
+                                <InputLabel id="account-select-label">Select Account</InputLabel>
+                                <Select
+                                    labelId="account-select-label"
+                                    value={activeAccountIndex}
+                                    label="Select Account"
+                                    onChange={(e) => setActiveAccountIndex(Number(e.target.value))}
+                                >
+                                    {accounts.map((account, index) => (
+                                        <MenuItem key={index} value={index}>
+                                            Account {account.AccountId}: {account.AccountFirstName || ''} {account.AccountLastName || ''}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            
+                            {/* Delete Account Button */}
+                            {accounts.length > 1 && (
+                                <Button
+                                    variant="outlined"
+                                    color="error"
+                                    startIcon={<DeleteIcon />}
+                                    onClick={() => deleteAccount(activeAccountIndex)}
+                                    sx={{ 
+                                        borderColor: '#B20838',
+                                        color: '#B20838',
+                                        '&:hover': {
+                                            borderColor: '#8e0629',
+                                            backgroundColor: 'rgba(178, 8, 56, 0.04)',
+                                            variant: "contained"
+                                        }
+                                    }}
+                                >
+                                    Delete Current Account
+                                </Button>
+                            )}
                         </Box>
                     </Paper>
 
