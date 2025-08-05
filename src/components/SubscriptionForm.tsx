@@ -5,7 +5,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
   Box, Button, Typography, TextField, Select, MenuItem, FormControl, InputLabel, FormHelperText, Paper,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Alert, SelectChangeEvent,
-  Autocomplete, Tooltip, Checkbox, FormControlLabel, Chip, Accordion, AccordionSummary, AccordionDetails,
+  Autocomplete, Tooltip, Checkbox, FormControlLabel, Accordion, AccordionSummary, AccordionDetails,
   CircularProgress
 } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
