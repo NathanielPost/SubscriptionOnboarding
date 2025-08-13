@@ -118,10 +118,16 @@ const SubscriptionForm: React.FC = () => {
 
     // Update validation status whenever accounts change
     useEffect(() => {
-        const newValidationStatus: { [accountIndex: number]: boolean } = {};
+        console.log('🔄 Updating validation status for accounts:', accounts.length);
+        const newValidationStatus: { [accountId: number]: boolean } = {};
         accounts.forEach((account, index) => {
-            newValidationStatus[index] = isAccountValid(account, index);
+            if (account.AccountId) {
+                const isValid = isAccountValid(account, index);
+                newValidationStatus[account.AccountId] = isValid;
+                console.log(`📊 Account ${account.AccountId} (index ${index}): ${account.AccountFirstName} ${account.AccountLastName} - Valid: ${isValid}`);
+            }
         });
+        console.log('📋 Final validation status:', newValidationStatus);
         setAccountValidationStatus(newValidationStatus);
     }, [accounts]);
 
@@ -288,9 +294,11 @@ const SubscriptionForm: React.FC = () => {
             }
             
             // Update validation status for all remaining accounts
-            const newValidationStatus: { [accountIndex: number]: boolean } = {};
+            const newValidationStatus: { [accountId: number]: boolean } = {};
             updatedAccounts.forEach((account, idx) => {
-                newValidationStatus[idx] = isAccountValid(account, idx);
+                if (account.AccountId) {
+                    newValidationStatus[account.AccountId] = isAccountValid(account, idx);
+                }
             });
             setAccountValidationStatus(newValidationStatus);
         }
@@ -323,7 +331,7 @@ const SubscriptionForm: React.FC = () => {
         const isValid = isAccountValid(newAccount as SubscriptionData, newIndex);
         setAccountValidationStatus(prev => ({
             ...prev,
-            [newIndex]: isValid
+            [newAccountId]: isValid
         }));
     };
 
@@ -659,16 +667,23 @@ const SubscriptionForm: React.FC = () => {
     const isAccountValid = (account: any, accountIndex: number): boolean => {
         const accountErrors = validateAccount(account, accountIndex);
         const planErrors = validateSubscriptionPlans(account.subscriptionPlans || []);
-        return Object.keys(accountErrors).length === 0 && Object.keys(planErrors).length === 0;
+        const isValid = Object.keys(accountErrors).length === 0 && Object.keys(planErrors).length === 0;
+        console.log(`✅ Validating Account ${account.AccountId} (index ${accountIndex}): errors=${Object.keys(accountErrors).length + Object.keys(planErrors).length}, valid=${isValid}`);
+        return isValid;
     };
 
     // State to track validation status of all accounts
-    const [accountValidationStatus, setAccountValidationStatus] = useState<{ [accountIndex: number]: boolean }>({});
+    const [accountValidationStatus, setAccountValidationStatus] = useState<{ [accountId: number]: boolean }>({});
+
+    // Debug: Log validation status changes
+    useEffect(() => {
+        console.log('📊 Validation status updated:', accountValidationStatus);
+    }, [accountValidationStatus]);
 
     const validateAllAccounts = (): boolean => {
         let isValid = true;
         const newErrors: { [key: string]: string } = {};
-        const newValidationStatus: { [accountIndex: number]: boolean } = {};
+        const newValidationStatus: { [accountId: number]: boolean } = {};
         
         accounts.forEach((account, accountIndex) => {
             // Validate each account
@@ -677,8 +692,10 @@ const SubscriptionForm: React.FC = () => {
             Object.assign(newErrors, validateSubscriptionPlans(account.subscriptionPlans || []));
             
             // Update validation status for this account
-            newValidationStatus[accountIndex] = isAccountValid(account, accountIndex);
-            
+            if (account.AccountId) {
+                newValidationStatus[account.AccountId] = isAccountValid(account, accountIndex);
+            }
+
             if (Object.keys(accountErrors).length > 0) {
                 isValid = false;
             }
@@ -856,12 +873,12 @@ const SubscriptionForm: React.FC = () => {
         // Update validation status for the current account
         setTimeout(() => {
             const updatedAccount = accounts.find((_, idx) => idx === activeAccountIndex);
-            if (updatedAccount) {
+            if (updatedAccount && updatedAccount.AccountId) {
                 const updatedAccountWithNewValue = { ...updatedAccount, [field]: value };
                 const isValid = isAccountValid(updatedAccountWithNewValue, activeAccountIndex);
                 setAccountValidationStatus(prev => ({
                     ...prev,
-                    [activeAccountIndex]: isValid
+                    [updatedAccount.AccountId]: isValid
                 }));
             }
         }, 0);
@@ -1149,14 +1166,17 @@ const SubscriptionForm: React.FC = () => {
             
             // Update validation status after copying
             const isValid = isAccountValid(updatedAccount, activeAccountIndex);
-            setAccountValidationStatus(prev => ({
-                ...prev,
-                [activeAccountIndex]: isValid
-            }));
+            if (updatedAccount.AccountId) {
+                setAccountValidationStatus(prev => ({
+                    ...prev,
+                    [updatedAccount.AccountId]: isValid
+                }));
+            }
         }
     };
 
     const handleAutofillTestData = () => {
+        console.log('Autofilling test data...');
         const testData: Partial<SubscriptionData> = {
             // Account Information
             RunId: 10,
@@ -1259,10 +1279,12 @@ const SubscriptionForm: React.FC = () => {
         
         // Update validation status after autofill
         const isValid = isAccountValid(testData as SubscriptionData, activeAccountIndex);
-        setAccountValidationStatus(prev => ({
-            ...prev,
-            [activeAccountIndex]: isValid
-        }));
+        if (testData.AccountId) {
+            setAccountValidationStatus(prev => ({
+                ...prev,
+                [testData.AccountId]: isValid
+            }));
+        }
         
         window.scrollTo({ top: 2098, behavior: 'smooth' });
     };
@@ -1480,39 +1502,6 @@ const SubscriptionForm: React.FC = () => {
                         prompt: 'Select Corporate or Individual'
                     };
                 }
-
-                // Add a sample row with dropdown to show users how it works
-                const sampleRow = worksheet.addRow([
-                    'John Doe', // name
-                    'John', // firstname
-                    'Doe', // lastname
-                    'john.doe@example.com', // email
-                    '(555)123-4567', // phone
-                    '123 Main St', // address 1
-                    'Apt 1', // address 2
-                    'New York', // city
-                    'NY', // state
-                    'US', // country
-                    '10001', // zipcode
-                    '', // Account Type - leave empty to show dropdown
-                    'Y' // Use account address as billing address
-                ]);
-                sampleRow.font = { italic: true, color: { argb: 'FF666666' } };
-
-                // Apply validation to the sample row's Account Type cell too
-                const sampleAccountTypeCell = worksheet.getCell(`${columnLetter}3`);
-                sampleAccountTypeCell.dataValidation = {
-                    type: 'list',
-                    allowBlank: false,
-                    formulae: ['"Corporate,Individual"'],
-                    showErrorMessage: true,
-                    errorStyle: 'error',
-                    errorTitle: 'Invalid Account Type',
-                    error: 'Please select either Corporate or Individual from the dropdown.',
-                    showInputMessage: true,
-                    promptTitle: 'Account Type',
-                    prompt: 'Select Corporate or Individual'
-                };
             }
 
             // Write the file
@@ -1556,13 +1545,24 @@ const SubscriptionForm: React.FC = () => {
                 const header = (rows[0] as any[]).map((h: any) => (h || '').toString().trim().toLowerCase());
 
                 // Validate required columns
-                const requiredCols = ['firstname','lastname','email','phone','address 1','city','state','country','zipcode','use account address as billing address? (y/n)'];
+                const requiredCols = ['firstname','lastname','email','phone','address 1','city','state','country','zipcode', 'account type','use account address as billing address? (y/n)'];
                 for (const col of requiredCols) {
                     if (!header.includes(col)) throw new Error(`Missing required column: ${col}`);
                 }
 
+                // Filter rows to only include those with a firstname value
+                const dataRows = rows.slice(1).filter((row: any[]) => {
+                    const firstnameIndex = header.indexOf('firstname');
+                    const firstname = firstnameIndex !== -1 ? (row[firstnameIndex] || '').toString().trim() : '';
+                    return firstname !== '';
+                });
+
+                if (dataRows.length === 0) {
+                    throw new Error('No valid rows found. All rows must have a value in the firstname column.');
+                }
+
                 // Map each data row to an account object
-                const newAccounts: Partial<SubscriptionData>[] = rows.slice(1).map((row: any[]) => {
+                const newAccounts: Partial<SubscriptionData>[] = dataRows.map((row: any[]) => {
                     const get = (col: string) => {
                         const idx = header.indexOf(col.toLowerCase());
                         return idx !== -1 ? row[idx] : '';
@@ -1626,15 +1626,19 @@ const SubscriptionForm: React.FC = () => {
                 });
 
                 // Add new accounts to state
-                setAccounts(prev => [...prev, ...newAccounts]);
+                console.log(`📥 Importing ${newAccounts.length} new accounts:`, newAccounts.map(acc => `${acc.AccountId}: ${acc.AccountFirstName} ${acc.AccountLastName}`));
+                setAccounts(prev => {
+                    const updatedAccounts = [...prev, ...newAccounts];
+                    console.log('📝 Updated accounts array:', updatedAccounts.map((acc, idx) => `Index ${idx}: Account ${acc.AccountId}`));
+                    return updatedAccounts;
+                });
                 setActiveAccountIndex(accounts.length); // Optionally switch to the first new account
                 
-                // Validate all accounts after import
-                setTimeout(() => {
-                    validateAllAccounts();
-                }, 100);
+                // Force immediate validation for all accounts (no timeout needed)
+                console.log('⚡ Triggering immediate validation after import');
+                // The useEffect will handle validation automatically when accounts change
                 
-                setImportSuccess('Account data imported successfully!');
+                setImportSuccess(`Account data imported successfully! Added ${newAccounts.length} accounts.`);
                 window.scrollTo({ top: 200, behavior: 'smooth' });
             } catch (err: any) {
                 setImportError(err.message || 'Failed to import account data.');
@@ -1850,29 +1854,29 @@ const SubscriptionForm: React.FC = () => {
                                     onChange={(e) => {
                                         const newIndex = Number(e.target.value);
                                         setActiveAccountIndex(newIndex);
-                                        // Validate the selected account
-                                        const isValid = isAccountValid(accounts[newIndex], newIndex);
-                                        setAccountValidationStatus(prev => ({
-                                            ...prev,
-                                            [newIndex]: isValid
-                                        }));
+                                        console.log(`🎯 Selected account index ${newIndex}, AccountId: ${accounts[newIndex]?.AccountId}`);
+                                        // Validation will be handled by useEffect when accounts change
                                     }}
                                 >
-                                    {accounts.map((account, index) => (
-                                        <MenuItem key={index} value={index}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                                                <Box sx={{ flex: 1 }}>
-                                                    Account {account.AccountId}: {account.AccountFirstName || ''} {account.AccountLastName || ''}
+                                    {accounts.map((account, index) => {
+                                        const validationStatus = account.AccountId ? accountValidationStatus[account.AccountId] : undefined;
+                                        console.log(`🎨 Rendering Account ${account.AccountId} (index ${index}): validation=${validationStatus}`);
+                                        return (
+                                            <MenuItem key={index} value={index}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                                                    <Box sx={{ flex: 1 }}>
+                                                        Account {account.AccountId}: {account.AccountFirstName || ''} {account.AccountLastName || ''}
+                                                    </Box>
+                                                    {account.AccountId && accountValidationStatus[account.AccountId] === true && (
+                                                        <CheckCircleIcon sx={{ color: 'green', fontSize: 20 }} />
+                                                    )}
+                                                    {account.AccountId && accountValidationStatus[account.AccountId] === false && (
+                                                        <ErrorIcon sx={{ color: 'red', fontSize: 20 }} />
+                                                    )}
                                                 </Box>
-                                                {accountValidationStatus[index] === true && (
-                                                    <CheckCircleIcon sx={{ color: 'green', fontSize: 20 }} />
-                                                )}
-                                                {accountValidationStatus[index] === false && (
-                                                    <ErrorIcon sx={{ color: 'red', fontSize: 20 }} />
-                                                )}
-                                            </Box>
-                                        </MenuItem>
-                                    ))}
+                                            </MenuItem>
+                                        );
+                                    })}
                                 </Select>
                             </FormControl>
                             
